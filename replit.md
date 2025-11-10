@@ -8,6 +8,15 @@ Users can upload images, describe desired transformations in plain English (e.g.
 
 ## Recent Changes (November 10, 2025)
 
+**Save Edit and Gallery Features**
+- Added PUT /api/images/:id endpoint to update image's currentUrl when edits are saved
+- Implemented save functionality in EditorPage - clicking save on an edit updates the image in database
+- Refactored GalleryPage to fetch real user images from GET /api/images instead of mock data
+- Added loading and empty states to GalleryPage for better UX
+- Gallery displays all user's images with their current (latest saved) versions
+- Before/after modal shows original vs current image comparison
+- End-to-end tested complete flow: upload → edit → save → gallery ✓
+
 **Image Upload Implementation**
 - Added Replit Object Storage integration for secure image storage
 - Implemented presigned URL upload flow (client → object storage → database)
