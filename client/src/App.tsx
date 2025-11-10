@@ -36,7 +36,7 @@ function Router() {
           <Route path="/onboarding" component={OnboardingPage} />
           <Route path="/editor" component={EditorPage} />
           <Route path="/gallery" component={GalleryPage} />
-          <Route component={NotFound} />
+          <Route path="*" component={NotFound} />
         </>
       )}
     </Switch>
