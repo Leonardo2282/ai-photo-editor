@@ -40,9 +40,7 @@ export default function EditorPage() {
   ];
 
   const handleGetUploadParameters = async () => {
-    const response = await apiRequest("/api/objects/upload", {
-      method: "POST",
-    });
+    const response = await apiRequest("POST", "/api/objects/upload");
     const data = await response.json();
     return {
       method: "PUT" as const,
@@ -74,15 +72,12 @@ export default function EditorPage() {
       const dimensions = await getImageDimensions(uploadedFile.data as File);
 
       // Create image record in database
-      const response = await apiRequest("/api/images", {
-        method: "POST",
-        body: JSON.stringify({
-          uploadUrl,
-          fileName: uploadedFile.name,
-          fileSize: uploadedFile.size || 0,
-          width: dimensions.width,
-          height: dimensions.height,
-        }),
+      const response = await apiRequest("POST", "/api/images", {
+        uploadUrl,
+        fileName: uploadedFile.name,
+        fileSize: uploadedFile.size || 0,
+        width: dimensions.width,
+        height: dimensions.height,
       });
 
       const image: Image = await response.json();

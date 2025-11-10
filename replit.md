@@ -6,6 +6,18 @@ An AI-powered photo editing web application that enables users to transform imag
 
 Users can upload images, describe desired transformations in plain English (e.g., "make the sky more dramatic with sunset colors"), and watch AI-powered edits happen in real-time. The app maintains edit history, allows before/after comparisons, and saves edited images to a personal gallery.
 
+## Recent Changes (November 10, 2025)
+
+**Image Upload Implementation**
+- Added Replit Object Storage integration for secure image storage
+- Implemented presigned URL upload flow (client → object storage → database)
+- Created ObjectUploader component using Uppy Dashboard for modern upload UX
+- Added ACL policies to enforce authentication for private images
+- Implemented storage interface with full CRUD operations for images and edits
+- Fixed apiRequest function call signatures in EditorPage
+- Fixed Uppy CSS imports using proper package export paths
+- End-to-end tested upload flow with successful image persistence and display
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -37,9 +49,11 @@ Preferred communication style: Simple, everyday language.
 3. **Gallery**: Browse saved edits with modal detail view and before/after slider
 
 **File Upload**
-- React Dropzone for drag-and-drop image uploads
+- Uppy Dashboard modal for modern upload experience with progress tracking
+- Direct client-side uploads to Replit Object Storage via presigned URLs
 - Accepts JPEG, PNG, WebP formats with 20MB size limit
-- Client-side preview before server upload
+- Client-side image dimension extraction before database persistence
+- ObjectUploader component wraps Uppy with configurable restrictions and callbacks
 
 ### Backend Architecture
 
@@ -75,13 +89,16 @@ Preferred communication style: Simple, everyday language.
 
 **Storage Strategy**
 - In-memory storage implementation (`MemStorage` class) for development
-- Interface-based design (`IStorage`) allows swapping to database-backed storage
-- Planned: Replit Object Storage for image file persistence
+- Interface-based design (`IStorage`) with full CRUD operations for images and edits
+- Database-backed storage using Drizzle ORM for production data persistence
+- Replit Object Storage integrated for secure image file storage with ACL policies
 
-**Image Processing**
-- Multer for handling multipart/form-data uploads (20MB limit)
-- Sharp library available for server-side image optimization and manipulation
-- AI transformations via Google Gemini API
+**Image Processing & Storage**
+- Presigned URL generation for secure direct-to-storage uploads (`POST /api/objects/upload`)
+- ACL policy enforcement for private image access control (requires authentication)
+- Path normalization to convert storage URLs to `/objects/...` format for ACL verification
+- Image metadata persistence with automatic dimension extraction on client side
+- AI transformations via Google Gemini API (to be implemented)
 
 ### External Dependencies
 
