@@ -156,6 +156,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update image (e.g., save an edit as the current version)
+  app.put("/api/images/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const imageId = parseInt(req.params.id);
+      if (isNaN(imageId)) {
+        return res.status(400).json({ error: "Invalid image ID" });
+      }
+
+      const image = await storage.getImage(imageId);
+      if (!image) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      // Ensure user owns the image
+      if (image.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Validate update data
+      const updateSchema = z.object({
+        currentUrl: z.string().optional(),
+      });
+      const validatedData = updateSchema.parse(req.body);
+
+      const updatedImage = await storage.updateImage(imageId, validatedData);
+      res.json(updatedImage);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      console.error("Error updating image:", error);
+      res.status(500).json({ error: "Failed to update image" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

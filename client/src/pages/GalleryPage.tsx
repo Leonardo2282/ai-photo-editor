@@ -1,68 +1,45 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import GalleryGrid from "@/components/GalleryGrid";
 import ImageDetailModal from "@/components/ImageDetailModal";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Link } from "wouter";
+import type { Image } from "@shared/schema";
+import { formatDistanceToNow } from "date-fns";
 
 export default function GalleryPage() {
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
 
-  // Mock data for prototype
-  const mockImages = [
-    {
-      id: 1,
-      thumbnailUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop",
-      prompt: "Make the sky more dramatic with sunset colors and enhance mountain details",
-      createdAt: "2 hours ago",
-      originalUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop",
-      editedUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop&sat=-100"
-    },
-    {
-      id: 2,
-      thumbnailUrl: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&h=400&fit=crop",
-      prompt: "Add warm golden hour lighting with soft glow",
-      createdAt: "1 day ago",
-      originalUrl: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1200&h=800&fit=crop",
-      editedUrl: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1200&h=800&fit=crop&sat=-100"
-    },
-    {
-      id: 3,
-      thumbnailUrl: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=400&h=400&fit=crop",
-      prompt: "Convert to black and white with high contrast",
-      createdAt: "2 days ago",
-      originalUrl: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=1200&h=800&fit=crop",
-      editedUrl: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=1200&h=800&fit=crop&sat=-100"
-    },
-    {
-      id: 4,
-      thumbnailUrl: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&h=400&fit=crop",
-      prompt: "Enhance colors and add vibrant saturation for social media",
-      createdAt: "3 days ago",
-      originalUrl: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1200&h=800&fit=crop",
-      editedUrl: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1200&h=800&fit=crop&sat=-100"
-    },
-    {
-      id: 5,
-      thumbnailUrl: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=400&h=400&fit=crop",
-      prompt: "Add dreamy soft focus with pastel tones",
-      createdAt: "5 days ago",
-      originalUrl: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1200&h=800&fit=crop",
-      editedUrl: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1200&h=800&fit=crop&sat=-100"
-    },
-    {
-      id: 6,
-      thumbnailUrl: "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=400&h=400&fit=crop",
-      prompt: "Make it look like a professional landscape photo",
-      createdAt: "1 week ago",
-      originalUrl: "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=1200&h=800&fit=crop",
-      editedUrl: "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=1200&h=800&fit=crop&sat=-100"
-    }
-  ];
+  // Fetch user's images from the database
+  const { data: userImages = [], isLoading } = useQuery<Image[]>({
+    queryKey: ['/api/images'],
+  });
+
+  // Transform database images to gallery grid format
+  const galleryImages = userImages.map(img => ({
+    id: img.id,
+    thumbnailUrl: img.currentUrl,
+    prompt: img.fileName, // Use filename as fallback since we don't have prompts on images
+    createdAt: formatDistanceToNow(new Date(img.createdAt), { addSuffix: true }),
+    originalUrl: img.originalUrl,
+    editedUrl: img.currentUrl,
+  }));
 
   const selectedImageData = selectedImage 
-    ? mockImages.find(img => img.id === selectedImage)
+    ? galleryImages.find(img => img.id === selectedImage)
     : null;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your gallery...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -71,7 +48,7 @@ export default function GalleryPage() {
           <div>
             <h1 className="text-3xl font-bold">My Gallery</h1>
             <p className="text-muted-foreground mt-1">
-              {mockImages.length} saved {mockImages.length === 1 ? 'image' : 'images'}
+              {galleryImages.length} saved {galleryImages.length === 1 ? 'image' : 'images'}
             </p>
           </div>
           <Link href="/editor">
@@ -82,10 +59,28 @@ export default function GalleryPage() {
           </Link>
         </div>
 
-        <GalleryGrid
-          images={mockImages}
-          onItemClick={(id) => setSelectedImage(id)}
-        />
+        {galleryImages.length === 0 ? (
+          <div className="text-center py-24">
+            <div className="rounded-full p-6 bg-muted inline-block mb-4">
+              <Plus className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">No images yet</h2>
+            <p className="text-muted-foreground mb-6">
+              Start by uploading and editing your first image
+            </p>
+            <Link href="/editor">
+              <Button data-testid="button-start-editing">
+                <Plus className="h-4 w-4 mr-2" />
+                Start Editing
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <GalleryGrid
+            images={galleryImages}
+            onItemClick={(id) => setSelectedImage(id)}
+          />
+        )}
       </div>
 
       {selectedImageData && (

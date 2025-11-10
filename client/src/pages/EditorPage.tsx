@@ -116,11 +116,44 @@ export default function EditorPage() {
     }, 2000);
   };
 
-  const handleSaveEdit = (id: number) => {
-    setEdits(edits.map(edit => 
-      edit.id === id ? { ...edit, isSaved: true } : edit
-    ));
-    console.log('Saved edit:', id);
+  const handleSaveEdit = async (id: number) => {
+    try {
+      const edit = edits.find(e => e.id === id);
+      if (!edit || !uploadedImage) return;
+
+      // TODO: Once AI is integrated, fetch the edit from the database to get the resultUrl
+      // For now, using thumbnailUrl from mock data for prototype purposes
+      // Real implementation will use: const dbEdit = await fetchEdit(id); dbEdit.resultUrl
+      const editedImageUrl = edit.thumbnailUrl;
+
+      // Update the image's currentUrl to the edit's result
+      await apiRequest("PUT", `/api/images/${uploadedImage.id}`, {
+        currentUrl: editedImageUrl,
+      });
+
+      // Update local state
+      setEdits(edits.map(e => 
+        e.id === id ? { ...e, isSaved: true } : e
+      ));
+
+      // Update the uploaded image state to reflect the change
+      setUploadedImage({
+        ...uploadedImage,
+        currentUrl: editedImageUrl,
+      });
+
+      toast({
+        title: "Edit saved",
+        description: "This version is now your current image",
+      });
+    } catch (error) {
+      console.error('Error saving edit:', error);
+      toast({
+        title: "Save failed",
+        description: "Failed to save edit. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleReset = () => {
