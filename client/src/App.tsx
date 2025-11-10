@@ -30,33 +30,27 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Router() {
-  const [location] = useLocation();
-  
-  // Routes that use the dashboard layout with sidebar
-  const dashboardRoutes = ["/editor", "/gallery", "/account"];
-  const useDashboard = dashboardRoutes.some(route => location.startsWith(route));
-
+function RouterContent() {
   return (
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/signin" component={SignInPage} />
       <Route path="/onboarding" component={OnboardingPage} />
       <Route path="/editor">
-        {useDashboard ? <DashboardLayout><EditorPage /></DashboardLayout> : <EditorPage />}
+        <DashboardLayout><EditorPage /></DashboardLayout>
       </Route>
       <Route path="/gallery">
-        {useDashboard ? <DashboardLayout><GalleryPage /></DashboardLayout> : <GalleryPage />}
+        <DashboardLayout><GalleryPage /></DashboardLayout>
       </Route>
       <Route path="/account">
-        {useDashboard ? <DashboardLayout><AccountPage /></DashboardLayout> : <AccountPage />}
+        <DashboardLayout><AccountPage /></DashboardLayout>
       </Route>
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
+function AppContent() {
   const [location] = useLocation();
   
   // Routes that should not show the header
@@ -72,23 +66,31 @@ function App() {
     "--sidebar-width-icon": "3rem",
   };
 
+  if (useSidebar) {
+    return (
+      <SidebarProvider style={style as React.CSSProperties}>
+        <RouterContent />
+        <Toaster />
+      </SidebarProvider>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {showHeader && <Header />}
+      <main className="flex-1">
+        <RouterContent />
+      </main>
+      <Toaster />
+    </div>
+  );
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {useSidebar ? (
-          <SidebarProvider style={style as React.CSSProperties}>
-            <Router />
-            <Toaster />
-          </SidebarProvider>
-        ) : (
-          <div className="min-h-screen flex flex-col">
-            {showHeader && <Header />}
-            <main className="flex-1">
-              <Router />
-            </main>
-            <Toaster />
-          </div>
-        )}
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );
