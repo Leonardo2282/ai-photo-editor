@@ -23,22 +23,22 @@ function Router() {
     );
   }
 
+  if (!isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/" component={LandingPage} />
+        <Route path="*" component={LandingPage} />
+      </Switch>
+    );
+  }
+
   return (
     <Switch>
-      {!isAuthenticated ? (
-        <>
-          <Route path="/" component={LandingPage} />
-          <Route path="*" component={LandingPage} />
-        </>
-      ) : (
-        <>
-          <Route path="/" component={HomePage} />
-          <Route path="/onboarding" component={OnboardingPage} />
-          <Route path="/editor" component={EditorPage} />
-          <Route path="/gallery" component={GalleryPage} />
-          <Route path="*" component={NotFound} />
-        </>
-      )}
+      <Route path="/" component={HomePage} />
+      <Route path="/onboarding" component={OnboardingPage} />
+      <Route path="/editor" component={EditorPage} />
+      <Route path="/gallery" component={GalleryPage} />
+      <Route path="*" component={NotFound} />
     </Switch>
   );
 }
