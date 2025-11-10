@@ -1,5 +1,7 @@
 import { useState } from "react";
+import type { UploadResult } from "@uppy/core";
 import UploadZone from "@/components/UploadZone";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import ImageCanvas from "@/components/ImageCanvas";
 import PromptInput from "@/components/PromptInput";
 import EditHistory from "@/components/EditHistory";
@@ -7,12 +9,16 @@ import PromptSuggestions from "@/components/PromptSuggestions";
 import ProcessingIndicator from "@/components/ProcessingIndicator";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Upload as UploadIcon } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Image } from "@shared/schema";
 
 export default function EditorPage() {
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<Image | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const { toast } = useToast();
   
   // Mock data for prototype
   const [edits, setEdits] = useState([
@@ -33,10 +39,67 @@ export default function EditorPage() {
     { id: 5, prompt: "Add soft bokeh background blur", category: "effects" }
   ];
 
-  const handleFileSelect = (file: File) => {
-    const url = URL.createObjectURL(file);
-    setUploadedImage(url);
-    console.log('File uploaded:', file.name);
+  const handleGetUploadParameters = async () => {
+    const response = await apiRequest("/api/objects/upload", {
+      method: "POST",
+    });
+    const data = await response.json();
+    return {
+      method: "PUT" as const,
+      url: data.uploadURL,
+    };
+  };
+
+  const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.width, height: img.height });
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    try {
+      if (result.successful.length === 0) {
+        throw new Error("No files uploaded");
+      }
+
+      const uploadedFile = result.successful[0];
+      const uploadUrl = uploadedFile.uploadURL;
+      
+      // Get image dimensions
+      const dimensions = await getImageDimensions(uploadedFile.data as File);
+
+      // Create image record in database
+      const response = await apiRequest("/api/images", {
+        method: "POST",
+        body: JSON.stringify({
+          uploadUrl,
+          fileName: uploadedFile.name,
+          fileSize: uploadedFile.size || 0,
+          width: dimensions.width,
+          height: dimensions.height,
+        }),
+      });
+
+      const image: Image = await response.json();
+      setUploadedImage(image);
+
+      toast({
+        title: "Image uploaded successfully",
+        description: "You can now start editing your image with AI",
+      });
+    } catch (error) {
+      console.error("Error creating image record:", error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to save image. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePromptSubmit = (prompt: string) => {
@@ -79,7 +142,25 @@ export default function EditorPage() {
             <h1 className="text-3xl font-bold">Start Editing</h1>
             <p className="text-muted-foreground">Upload an image to begin your AI transformation</p>
           </div>
-          <UploadZone onFileSelect={handleFileSelect} />
+          <div className="flex justify-center">
+            <ObjectUploader
+              maxNumberOfFiles={1}
+              maxFileSize={20 * 1024 * 1024}
+              onGetUploadParameters={handleGetUploadParameters}
+              onComplete={handleUploadComplete}
+              buttonClassName="h-64 w-full max-w-2xl border-2 border-dashed rounded-md hover-elevate active-elevate-2"
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="rounded-full p-4 bg-muted">
+                  <UploadIcon className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-lg font-medium">Click to upload an image</p>
+                  <p className="text-sm text-muted-foreground">Supports JPEG, PNG, WebP (max 20MB)</p>
+                </div>
+              </div>
+            </ObjectUploader>
+          </div>
         </div>
       </div>
     );
@@ -112,11 +193,11 @@ export default function EditorPage() {
             
             {showComparison ? (
               <BeforeAfterSlider
-                beforeImage={uploadedImage}
+                beforeImage={uploadedImage.currentUrl}
                 afterImage="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop&sat=-100"
               />
             ) : (
-              <ImageCanvas imageUrl={uploadedImage} />
+              <ImageCanvas imageUrl={uploadedImage.currentUrl} />
             )}
           </div>
         </div>

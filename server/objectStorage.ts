@@ -170,9 +170,19 @@ export class ObjectStorageService {
     }
   
     const url = new URL(rawPath);
-    const rawObjectPath = url.pathname;
+    let rawObjectPath = url.pathname;
+    
+    // Ensure leading slash
+    if (!rawObjectPath.startsWith("/")) {
+      rawObjectPath = `/${rawObjectPath}`;
+    }
   
     let objectEntityDir = this.getPrivateObjectDir();
+    // Ensure leading slash for comparison
+    if (!objectEntityDir.startsWith("/")) {
+      objectEntityDir = `/${objectEntityDir}`;
+    }
+    // Ensure trailing slash for directory
     if (!objectEntityDir.endsWith("/")) {
       objectEntityDir = `${objectEntityDir}/`;
     }
