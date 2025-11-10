@@ -6,27 +6,29 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Header from "@/components/Header";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import HomePage from "@/pages/HomePage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import EditorPage from "@/pages/EditorPage";
 import GalleryPage from "@/pages/GalleryPage";
 import AccountPage from "@/pages/AccountPage";
-import SignInPage from "@/pages/SignInPage";
 import NotFound from "@/pages/not-found";
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen w-full">
-      <AppSidebar />
-      <div className="flex flex-col flex-1">
-        <header className="flex items-center gap-2 p-4 border-b">
-          <SidebarTrigger data-testid="button-sidebar-toggle" />
-        </header>
-        <main className="flex-1 overflow-hidden">
-          {children}
-        </main>
+    <ProtectedRoute>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1">
+          <header className="flex items-center gap-2 p-4 border-b">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+          </header>
+          <main className="flex-1 overflow-hidden">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }
 
@@ -34,7 +36,6 @@ function RouterContent() {
   return (
     <Switch>
       <Route path="/" component={HomePage} />
-      <Route path="/signin" component={SignInPage} />
       <Route path="/onboarding" component={OnboardingPage} />
       <Route path="/editor">
         <DashboardLayout><EditorPage /></DashboardLayout>
@@ -54,7 +55,7 @@ function AppContent() {
   const [location] = useLocation();
   
   // Routes that should not show the header
-  const noHeaderRoutes = ["/signin", "/editor", "/gallery", "/account"];
+  const noHeaderRoutes = ["/editor", "/gallery", "/account"];
   const showHeader = !noHeaderRoutes.some(route => location.startsWith(route));
 
   // Routes that use the sidebar

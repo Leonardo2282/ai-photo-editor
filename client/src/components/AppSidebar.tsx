@@ -1,4 +1,4 @@
-import { Sparkles, Image as ImageIcon, FolderOpen, User } from "lucide-react";
+import { Sparkles, Image as ImageIcon, FolderOpen, User, LogOut } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Sidebar,
@@ -13,6 +13,8 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const menuItems = [
   {
@@ -34,13 +36,27 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
 
-  // Dummy user data
-  const user = {
-    username: "johndoe",
-    email: "john@example.com",
-    initials: "JD",
-    avatarUrl: "",
+  const getInitials = () => {
+    if (!user) return "?";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    if (user.email) {
+      return user.email[0].toUpperCase();
+    }
+    return "U";
+  };
+
+  const getDisplayName = () => {
+    if (!user) return "User";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.firstName) return user.firstName;
+    if (user.email) return user.email.split("@")[0];
+    return "User";
   };
 
   return (
@@ -76,19 +92,29 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer">
+      <SidebarFooter className="p-4 space-y-2">
+        <div className="flex items-center gap-3 p-2">
           <Avatar className="w-8 h-8">
-            <AvatarImage src={user.avatarUrl} />
-            <AvatarFallback className="text-xs">{user.initials}</AvatarFallback>
+            <AvatarImage src={user?.profileImageUrl || ""} />
+            <AvatarFallback className="text-xs">{getInitials()}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate" data-testid="text-user-name">
-              {user.username}
+              {getDisplayName()}
             </p>
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => window.location.href = "/api/logout"}
+          data-testid="button-sidebar-logout"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Logout
+        </Button>
       </SidebarFooter>
     </Sidebar>
   );

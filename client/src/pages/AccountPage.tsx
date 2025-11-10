@@ -4,14 +4,30 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AccountPage() {
-  // Dummy user data
-  const user = {
-    username: "johndoe",
-    email: "john@example.com",
-    initials: "JD",
-    avatarUrl: "",
+  const { user } = useAuth();
+
+  const getInitials = () => {
+    if (!user) return "?";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    if (user.email) {
+      return user.email[0].toUpperCase();
+    }
+    return "U";
+  };
+
+  const getDisplayName = () => {
+    if (!user) return "";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.firstName) return user.firstName;
+    if (user.email) return user.email.split("@")[0];
+    return "";
   };
 
   return (
@@ -30,8 +46,8 @@ export default function AccountPage() {
           <CardContent className="space-y-6">
             <div className="flex items-center gap-4">
               <Avatar className="w-20 h-20">
-                <AvatarImage src={user.avatarUrl} />
-                <AvatarFallback className="text-lg">{user.initials}</AvatarFallback>
+                <AvatarImage src={user?.profileImageUrl || ""} />
+                <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
               </Avatar>
               <div>
                 <Button variant="outline" size="sm" data-testid="button-change-avatar">
@@ -45,11 +61,19 @@ export default function AccountPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="first-name">First Name</Label>
                 <Input
-                  id="username"
-                  defaultValue={user.username}
-                  data-testid="input-username"
+                  id="first-name"
+                  defaultValue={user?.firstName || ""}
+                  data-testid="input-first-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last-name">Last Name</Label>
+                <Input
+                  id="last-name"
+                  defaultValue={user?.lastName || ""}
+                  data-testid="input-last-name"
                 />
               </div>
               <div className="space-y-2">
@@ -57,7 +81,7 @@ export default function AccountPage() {
                 <Input
                   id="email"
                   type="email"
-                  defaultValue={user.email}
+                  defaultValue={user?.email || ""}
                   data-testid="input-email"
                 />
               </div>
