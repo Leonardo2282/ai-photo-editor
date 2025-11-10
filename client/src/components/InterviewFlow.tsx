@@ -25,7 +25,7 @@ export default function InterviewFlow({ onComplete }: InterviewFlowProps) {
 
   const steps = [
     {
-      title: "What's your editing style?",
+      title: "What's your editing style?!!",
       explanation: "This will influence how AI processes your images - subtle enhancements or bold transformations.",
       options: [
         { value: "natural", label: "Natural & Subtle", description: "AI will make minimal, refined adjustments" },
