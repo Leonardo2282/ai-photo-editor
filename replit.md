@@ -55,7 +55,11 @@ Preferred communication style: Simple, everyday language.
 - Schema defined in `shared/schema.ts` for shared types between client and server
 
 **Database Schema**
-- `users` table: id (UUID), username (unique), password
+- `sessions` table: sid (primary key), sess (jsonb), expire (timestamp) - Required for Replit Auth
+- `users` table: id (varchar UUID), email, firstName, lastName, profileImageUrl, createdAt, updatedAt
+- `images` table: id (serial), userId (FK), originalUrl, currentUrl, fileName, fileSize, width, height, createdAt, updatedAt
+- `edits` table: id (serial), imageId (FK), userId (FK), prompt, resultUrl, createdAt
+- Foreign keys with cascade delete for data integrity
 - Schema uses Drizzle's `pgTable` with type inference for full TypeScript support
 - Zod validation schemas derived from Drizzle schemas via `createInsertSchema`
 
