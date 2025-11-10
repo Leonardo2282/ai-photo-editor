@@ -26,10 +26,11 @@ export default function InterviewFlow({ onComplete }: InterviewFlowProps) {
   const steps = [
     {
       title: "What's your editing style?",
+      explanation: "This will influence how AI processes your images - subtle enhancements or bold transformations.",
       options: [
-        { value: "natural", label: "Natural & Subtle", description: "Enhance without over-editing" },
-        { value: "dramatic", label: "Bold & Dramatic", description: "Make a strong visual impact" },
-        { value: "artistic", label: "Creative & Artistic", description: "Experimental transformations" }
+        { value: "natural", label: "Natural & Subtle", description: "AI will make minimal, refined adjustments" },
+        { value: "dramatic", label: "Bold & Dramatic", description: "AI will apply stronger, eye-catching effects" },
+        { value: "artistic", label: "Creative & Artistic", description: "AI gets creative freedom for unique results" }
       ],
       value: editingStyle,
       setValue: setEditingStyle,
@@ -37,11 +38,12 @@ export default function InterviewFlow({ onComplete }: InterviewFlowProps) {
     },
     {
       title: "What will you use this for?",
+      explanation: "We'll personalize prompt suggestions to match your goals and use cases.",
       options: [
-        { value: "social", label: "Social Media", description: "Instagram, TikTok, etc." },
-        { value: "professional", label: "Professional Work", description: "Business, portfolio" },
-        { value: "personal", label: "Personal Projects", description: "Hobby, creative fun" },
-        { value: "ecommerce", label: "E-commerce", description: "Product photos" }
+        { value: "social", label: "Social Media", description: "Optimized for engagement - vibrant, eye-catching" },
+        { value: "professional", label: "Professional Work", description: "Clean, natural edits for portfolios" },
+        { value: "personal", label: "Personal Projects", description: "Creative freedom for your hobby" },
+        { value: "ecommerce", label: "E-commerce", description: "Product-focused: backgrounds, lighting" }
       ],
       value: useCases,
       setValue: setUseCases,
@@ -49,10 +51,11 @@ export default function InterviewFlow({ onComplete }: InterviewFlowProps) {
     },
     {
       title: "What's your skill level?",
+      explanation: "We'll adjust the interface complexity and provide appropriate guidance for your experience level.",
       options: [
-        { value: "beginner", label: "Beginner", description: "New to photo editing" },
-        { value: "intermediate", label: "Intermediate", description: "Some experience" },
-        { value: "advanced", label: "Advanced", description: "Professional editor" }
+        { value: "beginner", label: "Beginner", description: "Simple prompts with helpful explanations" },
+        { value: "intermediate", label: "Intermediate", description: "Balanced interface with useful tips" },
+        { value: "advanced", label: "Advanced", description: "Full control with technical details" }
       ],
       value: skillLevel,
       setValue: setSkillLevel,
@@ -60,11 +63,12 @@ export default function InterviewFlow({ onComplete }: InterviewFlowProps) {
     },
     {
       title: "Favorite effects?",
+      explanation: "Your preferred effects will appear first in prompt suggestions, making editing faster.",
       options: [
-        { value: "lighting", label: "Lighting", description: "Enhance brightness & shadows" },
-        { value: "color", label: "Color Grading", description: "Adjust tones & saturation" },
-        { value: "filters", label: "Filters", description: "Vintage, B&W, etc." },
-        { value: "effects", label: "Special Effects", description: "Blur, sharpen, artistic" }
+        { value: "lighting", label: "Lighting", description: "Golden hour, dramatic skies, shadows" },
+        { value: "color", label: "Color Grading", description: "Warm tones, saturation, color shifts" },
+        { value: "filters", label: "Filters", description: "Vintage, B&W, cinematic looks" },
+        { value: "effects", label: "Special Effects", description: "Blur, sharpen, artistic filters" }
       ],
       value: favoriteEffects,
       setValue: setFavoriteEffects,
@@ -126,7 +130,12 @@ export default function InterviewFlow({ onComplete }: InterviewFlowProps) {
       </div>
 
       <div className="space-y-6">
-        <h3 className="text-xl font-medium">{currentStep.title}</h3>
+        <div className="space-y-2">
+          <h3 className="text-xl font-medium">{currentStep.title}</h3>
+          <p className="text-sm text-muted-foreground" data-testid="text-explanation">
+            {currentStep.explanation}
+          </p>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {currentStep.options.map((option) => {
