@@ -1,5 +1,7 @@
 import { useLocation } from "wouter";
 import InterviewFlow from "@/components/InterviewFlow";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function OnboardingPage() {
   const [, setLocation] = useLocation();
@@ -11,8 +13,21 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-muted/30">
-      <InterviewFlow onComplete={handleComplete} />
+    <div className="min-h-screen flex flex-col p-6 bg-muted/30">
+      <div className="max-w-2xl mx-auto w-full mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setLocation("/")}
+          data-testid="button-back-home"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Home
+        </Button>
+      </div>
+      <div className="flex-1 flex items-center justify-center">
+        <InterviewFlow onComplete={handleComplete} />
+      </div>
     </div>
   );
 }
