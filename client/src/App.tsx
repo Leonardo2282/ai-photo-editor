@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import LandingPage from "@/pages/LandingPage";
+import HomePage from "@/pages/HomePage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import EditorPage from "@/pages/EditorPage";
 import GalleryPage from "@/pages/GalleryPage";
@@ -31,7 +32,7 @@ function Router() {
         </>
       ) : (
         <>
-          <Route path="/" component={OnboardingPage} />
+          <Route path="/" component={HomePage} />
           <Route path="/onboarding" component={OnboardingPage} />
           <Route path="/editor" component={EditorPage} />
           <Route path="/gallery" component={GalleryPage} />
