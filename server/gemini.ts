@@ -44,7 +44,7 @@ export async function editImageWithGemini(
     }
 
     // Use generateContent with multimodal input
-    // Note: Do NOT specify responseModalities - let model return both text and image
+    // Model requires BOTH IMAGE and TEXT response modalities
     const response = await genAI.models.generateContent({
       model: "gemini-2.0-flash-preview-image-generation",
       contents: [
@@ -63,6 +63,9 @@ export async function editImageWithGemini(
           ],
         },
       ],
+      config: {
+        responseModalities: ["IMAGE", "TEXT"],
+      },
     });
 
     // Extract the generated image from response
