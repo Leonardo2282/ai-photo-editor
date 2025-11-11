@@ -8,6 +8,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { insertImageSchema } from "@shared/schema";
 import { z } from "zod";
+import { editImageWithGemini } from "./gemini";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth middleware
@@ -193,6 +194,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error updating image:", error);
       res.status(500).json({ error: "Failed to update image" });
+    }
+  });
+
+  // Create an edit (generate edited image using Gemini)
+  app.post("/api/edits", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Validate request body
+      const editRequestSchema = z.object({
+        imageId: z.number(),
+        prompt: z.string().min(1).max(500),
+      });
+      const { imageId, prompt } = editRequestSchema.parse(req.body);
+
+      // Get the image
+      const image = await storage.getImage(imageId);
+      if (!image) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      // Ensure user owns the image
+      if (image.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Build the full URL for the image
+      const objectStorageService = new ObjectStorageService();
+      const imageUrl = `${req.protocol}://${req.get("host")}${image.currentUrl}`;
+
+      // Call Gemini API to edit the image
+      console.log("Calling Gemini API to edit image...", { imageUrl, prompt });
+      const editResult = await editImageWithGemini({
+        imageUrl,
+        prompt,
+      });
+
+      // Convert base64 to buffer and upload to object storage
+      const imageBuffer = Buffer.from(editResult.imageData, "base64");
+      
+      // Get presigned upload URL
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      
+      // Upload the edited image
+      const uploadResponse = await fetch(uploadURL, {
+        method: "PUT",
+        body: imageBuffer,
+        headers: {
+          "Content-Type": editResult.mimeType,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload edited image: ${uploadResponse.statusText}`);
+      }
+
+      // Set ACL policy for the uploaded image
+      const resultPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        uploadURL,
+        {
+          owner: userId,
+          visibility: "private",
+        }
+      );
+
+      // Save edit to database
+      const edit = await storage.createEdit({
+        imageId,
+        userId,
+        prompt,
+        resultUrl: resultPath,
+      });
+
+      console.log("Edit created successfully:", edit);
+      res.status(201).json(edit);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      console.error("Error creating edit:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create edit" });
+    }
+  });
+
+  // Get edits for an image
+  app.get("/api/images/:id/edits", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const imageId = parseInt(req.params.id);
+      if (isNaN(imageId)) {
+        return res.status(400).json({ error: "Invalid image ID" });
+      }
+
+      // Verify image exists and user owns it
+      const image = await storage.getImage(imageId);
+      if (!image) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      if (image.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const imageEdits = await storage.getImageEdits(imageId);
+      res.json(imageEdits);
+    } catch (error) {
+      console.error("Error fetching edits:", error);
+      res.status(500).json({ error: "Failed to fetch edits" });
     }
   });
 
