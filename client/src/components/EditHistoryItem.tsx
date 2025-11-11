@@ -9,6 +9,7 @@ interface EditHistoryItemProps {
   prompt: string;
   timestamp: string;
   isActive?: boolean;
+  isBase?: boolean;
   isSaved?: boolean;
   onSave?: () => void;
   onUseAsBase?: () => void;
@@ -20,6 +21,7 @@ export default function EditHistoryItem({
   prompt,
   timestamp,
   isActive = false,
+  isBase = false,
   isSaved = false,
   onSave,
   onUseAsBase
@@ -52,6 +54,9 @@ export default function EditHistoryItem({
               <span>{timestamp}</span>
               {isSaved && (
                 <Badge variant="secondary" className="text-xs font-normal">Saved</Badge>
+              )}
+              {isBase && (
+                <Badge variant="default" className="text-xs font-normal">Current Base</Badge>
               )}
             </div>
           </div>

@@ -1,4 +1,6 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import EditHistoryItem from "./EditHistoryItem";
 import { History, Sparkles } from "lucide-react";
 
@@ -13,18 +15,44 @@ interface Edit {
 interface EditHistoryProps {
   edits: Edit[];
   activeEditId?: number;
+  currentBaseEditId: number | null;
+  overwriteLastSave: boolean;
+  onOverwriteToggle: (value: boolean) => void;
   onSave: (id: number) => void;
   onUseAsBase: (id: number) => void;
 }
 
-export default function EditHistory({ edits, activeEditId, onSave, onUseAsBase }: EditHistoryProps) {
+export default function EditHistory({ 
+  edits, 
+  activeEditId, 
+  currentBaseEditId,
+  overwriteLastSave,
+  onOverwriteToggle,
+  onSave, 
+  onUseAsBase 
+}: EditHistoryProps) {
   return (
     <div className="flex flex-col h-full bg-card/50">
-      <div className="p-6 border-b">
-        <div className="flex items-center gap-2 mb-2">
-          <History className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-semibold">Edit History</h2>
+      <div className="p-6 border-b space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Edit History</h2>
+          </div>
         </div>
+        
+        <div className="flex items-center justify-between">
+          <Label htmlFor="overwrite-toggle" className="text-sm font-medium cursor-pointer">
+            Overwrite Last Save
+          </Label>
+          <Switch
+            id="overwrite-toggle"
+            checked={overwriteLastSave}
+            onCheckedChange={onOverwriteToggle}
+            data-testid="toggle-overwrite"
+          />
+        </div>
+        
         <p className="text-sm text-muted-foreground">
           {edits.length} {edits.length === 1 ? 'edit' : 'edits'} applied
         </p>
@@ -48,6 +76,7 @@ export default function EditHistory({ edits, activeEditId, onSave, onUseAsBase }
                 key={edit.id}
                 {...edit}
                 isActive={edit.id === activeEditId}
+                isBase={edit.id === currentBaseEditId}
                 onSave={() => onSave(edit.id)}
                 onUseAsBase={() => onUseAsBase(edit.id)}
               />

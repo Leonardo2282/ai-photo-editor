@@ -18,6 +18,8 @@ export default function EditorPage() {
   const [uploadedImage, setUploadedImage] = useState<Image | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [currentBaseEditId, setCurrentBaseEditId] = useState<number | null>(null);
+  const [overwriteLastSave, setOverwriteLastSave] = useState(false);
   const { toast } = useToast();
   
   // Mock data for prototype
@@ -175,31 +177,20 @@ export default function EditorPage() {
 
   const handleSaveEdit = async (id: number) => {
     try {
-      const edit = edits.find(e => e.id === id);
-      if (!edit || !uploadedImage) return;
-
-      // Use the edit's resultUrl (thumbnailUrl) for the saved version
-      const editedImageUrl = edit.thumbnailUrl;
-
-      // Update the image's currentUrl to the edit's result
-      await apiRequest("PUT", `/api/images/${uploadedImage.id}`, {
-        currentUrl: editedImageUrl,
+      const response = await apiRequest("POST", `/api/edits/${id}/save`, {
+        overwriteLastSave,
       });
 
-      // Update local state
+      const data = await response.json();
+
+      // Update local state to mark as saved
       setEdits(edits.map(e => 
         e.id === id ? { ...e, isSaved: true } : e
       ));
 
-      // Update the uploaded image state to reflect the change
-      setUploadedImage({
-        ...uploadedImage,
-        currentUrl: editedImageUrl,
-      });
-
       toast({
-        title: "Edit saved",
-        description: "This version is now your current image",
+        title: "Saved to gallery",
+        description: data.message,
       });
     } catch (error) {
       console.error('Error saving edit:', error);
@@ -209,6 +200,14 @@ export default function EditorPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleUseAsBase = (id: number) => {
+    setCurrentBaseEditId(id);
+    toast({
+      title: "Base image updated",
+      description: "Future edits will be based on this version",
+    });
   };
 
   const handleReset = () => {
@@ -260,8 +259,11 @@ export default function EditorPage() {
         <EditHistory
           edits={edits}
           activeEditId={edits[0]?.id}
+          currentBaseEditId={currentBaseEditId}
+          overwriteLastSave={overwriteLastSave}
+          onOverwriteToggle={setOverwriteLastSave}
           onSave={handleSaveEdit}
-          onUseAsBase={(id) => console.log('Use as base:', id)}
+          onUseAsBase={handleUseAsBase}
         />
       </div>
 
