@@ -1,0 +1,383 @@
+1. ComparisonSlider Component (Issues 1, 7)
+
+Файл: client/src/components/editor/ComparisonSlider.jsx
+
+JavaScript
+
+
+import React, { useState, useRef, useEffect } from 'react';
+
+const ComparisonSlider = ({ 
+  baseImageUrl,      // Image set via "Use as Base"
+  editedImageUrl,    // Currently selected edited image
+  basePrompt = 'Base',
+  editPrompt = 'Edit'
+}) => {
+  const [sliderPosition, setSliderPosition] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const [containerHeight, setContainerHeight] = useState('auto');
+  const containerRef = useRef(null);
+  const baseImageRef = useRef(null);
+
+  // Calculate container height based on image aspect ratio
+  useEffect(() => {
+    if (!baseImageRef.current) return;
+
+    const img = baseImageRef.current;
+    
+    const handleImageLoad = () => {
+      const aspectRatio = img.naturalWidth / img.naturalHeight;
+      const containerWidth = containerRef.current?.offsetWidth || 800;
+      const calculatedHeight = containerWidth / aspectRatio;
+      
+      setContainerHeight(`${calculatedHeight}px`);
+      console.log('[ComparisonSlider] Container height calculated:', calculatedHeight);
+    };
+
+    if (img.complete) {
+      handleImageLoad();
+    } else {
+      img.addEventListener('load', handleImageLoad);
+      return () => img.removeEventListener('load', handleImageLoad);
+    }
+  }, [baseImageUrl]);
+
+  const handleMouseDown = () => {
+    setIsDragging(true);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = (x / rect.width) * 100;
+    
+    setSliderPosition(Math.max(0, Math.min(100, percentage)));
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging]);
+
+  return (
+    <div className="comparison-slider-wrapper">
+      <div
+        ref={containerRef}
+        className="comparison-slider-container"
+        style={{ height: containerHeight }}
+        onMouseDown={handleMouseDown}
+      >
+        {/* Base Image (Left Side) */}
+        <div className="comparison-image-wrapper base-image">
+          <img
+            ref={baseImageRef}
+            src={baseImageUrl}
+            alt="Base"
+            className="comparison-image"
+            style={{ objectFit: 'contain' }}
+          />
+          <div className="image-label base-label">{basePrompt}</div>
+        </div>
+
+        {/* Edited Image (Right Side) - Clipped by slider */}
+        <div
+          className="comparison-image-wrapper edited-image"
+          style={{ clipPath: `inset(0 0 0 ${sliderPosition}%)` }}
+        >
+          <img
+            src={editedImageUrl}
+            alt="Edit"
+            className="comparison-image"
+            style={{ objectFit: 'contain' }}
+          />
+          <div className="image-label edit-label">{editPrompt}</div>
+        </div>
+
+        {/* Slider Handle */}
+        <div
+          className="slider-handle"
+          style={{ left: `${sliderPosition}%` }}
+        >
+          <div className="slider-line" />
+          <div className="slider-button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" />
+              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Prompt Display */}
+      {editPrompt && editPrompt !== 'Edit' && (
+        <div className="edit-prompt-display">
+          <strong>Edit Prompt:</strong> {editPrompt}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ComparisonSlider;
+
+
+
+
+
+2. CSS for ComparisonSlider
+
+Файл: client/src/index.css (Добавить)
+
+CSS
+
+
+/* Comparison Slider Styles */
+.comparison-slider-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.comparison-slider-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  cursor: ew-resize;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comparison-image-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comparison-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* NOT cover - prevents cropping */
+  user-select: none;
+  pointer-events: none;
+}
+
+.edited-image {
+  z-index: 2;
+}
+
+.base-image {
+  z-index: 1;
+}
+
+.image-label {
+  position: absolute;
+  bottom: 12px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.base-label {
+  left: 12px;
+}
+
+.edit-label {
+  right: 12px;
+}
+
+.slider-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  transform: translateX(-50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.slider-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: white;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+}
+
+.slider-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  color: #1f2937;
+}
+
+.edit-prompt-display {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.edit-prompt-display strong {
+  color: #1f2937;
+  margin-right: 8px;
+}
+
+
+
+
+
+3. EditorWorkspace with ComparisonSlider Integration
+
+Файл: client/src/components/editor/EditorWorkspace.jsx
+
+JavaScript
+
+
+import React, { useState } from 'react';
+import ComparisonSlider from './ComparisonSlider';
+import ImageCanvas from './ImageCanvas';
+
+const EditorWorkspace = ({ 
+  currentBaseImageUrl,   // Image set via "Use as Base"
+  currentEditedImageUrl, // Currently selected edit
+  currentEditPrompt,
+  showComparison = true
+}) => {
+  const [viewMode, setViewMode] = useState('comparison'); // 'comparison' or 'single'
+
+  return (
+    <div className="editor-workspace">
+      <div className="workspace-header">
+        <button
+          onClick={() => setViewMode('comparison')}
+          className={viewMode === 'comparison' ? 'active' : ''}
+        >
+          Compare
+        </button>
+        <button
+          onClick={() => setViewMode('single')}
+          className={viewMode === 'single' ? 'active' : ''}
+        >
+          Single View
+        </button>
+      </div>
+
+      <div className="workspace-content">
+        {viewMode === 'comparison' && currentBaseImageUrl && currentEditedImageUrl ? (
+          <ComparisonSlider
+            baseImageUrl={currentBaseImageUrl}
+            editedImageUrl={currentEditedImageUrl}
+            basePrompt="Base"
+            editPrompt={currentEditPrompt || 'Edit'}
+          />
+        ) : (
+          <ImageCanvas
+            imageUrl={currentEditedImageUrl || currentBaseImageUrl}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default EditorWorkspace;
+
+
+
+
+
+4. Updated EditHistoryItem with "Use as Base" Button
+
+Файл: client/src/components/editor/EditHistoryItem.jsx
+
+JavaScript
+
+
+import React from 'react';
+
+const EditHistoryItem = ({ 
+  item, 
+  index, 
+  onUseAsBase, 
+  onSave,
+  isBaseImage = false 
+}) => {
+  return (
+    <div className={`edit-history-item ${isBaseImage ? 'is-base' : ''}`}>
+      <div className="item-thumbnail">
+        <img src={item.url} alt={item.prompt} />
+        {isBaseImage && <span className="base-badge">Base</span>}
+      </div>
+      
+      <div className="item-details">
+        <p className="item-prompt">{item.prompt}</p>
+        <p className="item-timestamp">
+          {new Date(item.timestamp).toLocaleString()}
+        </p>
+      </div>
+      
+      <div className="item-actions">
+        {!item.isOriginal && (
+          <button
+            onClick={onUseAsBase}
+            className="use-as-base-button"
+            title="Use this image as the base for future edits"
+          >
+            Use as Base
+          </button>
+        )}
+        
+        {!item.isOriginal && (
+          <button
+            onClick={onSave}
+            className="save-button"
+          >
+            Save
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default EditHistoryItem;
+
+
