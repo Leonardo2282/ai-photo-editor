@@ -318,6 +318,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save an edit as a new image in the gallery
+  app.post("/api/edits/:editId/save", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const editId = parseInt(req.params.editId);
+      const { overwriteLastSave } = z.object({
+        overwriteLastSave: z.boolean().default(false),
+      }).parse(req.body);
+
+      // Get the edit
+      const [edit] = await db.select().from(edits).where(eq(edits.id, editId));
+      if (!edit) {
+        return res.status(404).json({ error: "Edit not found" });
+      }
+
+      // Get the parent image
+      const parentImage = await storage.getImage(edit.imageId);
+      if (!parentImage) {
+        return res.status(404).json({ error: "Parent image not found" });
+      }
+
+      // Ensure user owns the edit
+      if (edit.userId !== userId || parentImage.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Save the edit as an image
+      const savedImage = await storage.saveEditAsImage(edit, parentImage, overwriteLastSave);
+
+      res.status(201).json({
+        image: savedImage,
+        message: overwriteLastSave ? "Previous save overwritten" : "Saved as new image",
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      
+      console.error("Error saving edit:", error);
+      res.status(500).json({ error: "Failed to save edit" });
+    }
+  });
+
   // Get edits for an image
   app.get("/api/images/:id/edits", isAuthenticated, async (req, res) => {
     try {
