@@ -8,6 +8,20 @@ Users can upload images, describe desired transformations in plain English (e.g.
 
 ## Recent Changes (November 11, 2025)
 
+**Gemini AI Image Editing Integration - COMPLETE**
+- Integrated Google Gemini 2.5 Flash Image (Nano Banana) model for AI-powered image transformations
+- Implemented POST /api/edits endpoint with full image editing pipeline:
+  - Downloads source image from object storage (bypassing authentication issues)
+  - Converts image to base64 data URL for Gemini API
+  - Calls Gemini generateContent() with multimodal input (image + text prompt)
+  - Uploads edited result back to object storage with ACL policies
+  - Saves edit record to database with resultUrl
+- Created gemini.ts service using @google/genai SDK with generateContent multimodal approach
+- Updated EditorPage to call real API endpoint and display AI-generated edits
+- Error handling: Surfaces clear error messages to users when API quota is exceeded
+- Edit history now displays actual AI-generated images with prompts and timestamps
+- Complete flow verified: upload → prompt → AI edit → save to gallery ✓
+
 **Comprehensive Design Enhancement**
 - Enhanced visual design across entire application with elegant, cohesive styling
 - **GalleryPage**: Improved typography (text-4xl headings), better spacing (max-w-6xl, gap-8), enhanced empty states
@@ -122,14 +136,22 @@ Preferred communication style: Simple, everyday language.
 - ACL policy enforcement for private image access control (requires authentication)
 - Path normalization to convert storage URLs to `/objects/...` format for ACL verification
 - Image metadata persistence with automatic dimension extraction on client side
-- AI transformations via Google Gemini API (to be implemented)
+- AI transformations via Google Gemini 2.5 Flash Image API (fully implemented)
+  - POST /api/edits endpoint handles complete edit pipeline
+  - Uses multimodal generateContent() approach (image + text instruction)
+  - Downloads from object storage, processes with Gemini, uploads result
+  - Response time: 15-30 seconds for AI processing
 
 ### External Dependencies
 
 **AI Integration**
-- Google Gemini 2.5 Flash Image API (`@google/genai` SDK)
+- Google Gemini 2.5 Flash Image API (`@google/genai` SDK v0.21+)
+- Model: gemini-2.5-flash-image (Nano Banana)
+- Method: generateContent() with multimodal input (inlineData image + text prompt)
+- Config: responseModalities set to ["image"] for image output
 - Natural language prompt processing for image transformations
-- API key managed via environment variables
+- API key managed via GEMINI_API_KEY environment variable
+- Quota management: Free tier has usage limits; errors surfaced to users gracefully
 
 **Database Service**
 - Neon PostgreSQL (serverless)
