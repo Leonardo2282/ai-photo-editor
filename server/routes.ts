@@ -209,8 +209,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const editRequestSchema = z.object({
         imageId: z.number(),
         prompt: z.string().min(1).max(500),
+        baseEditId: z.number().optional(),
       });
-      const { imageId, prompt } = editRequestSchema.parse(req.body);
+      const { imageId, prompt, baseEditId } = editRequestSchema.parse(req.body);
 
       // Get the image
       const image = await storage.getImage(imageId);
@@ -223,9 +224,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Forbidden" });
       }
 
+      // Determine source image URL
+      let sourceImageUrl = image.currentUrl;
+      
+      // If baseEditId is provided, use that edit's result as the source
+      if (baseEditId) {
+        const [baseEdit] = await db.select().from(edits).where(eq(edits.id, baseEditId));
+        if (!baseEdit) {
+          return res.status(404).json({ error: "Base edit not found" });
+        }
+        
+        // Verify ownership
+        if (baseEdit.userId !== userId) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+        
+        sourceImageUrl = baseEdit.resultUrl;
+        console.log(`Using edit ${baseEditId} as base for new edit`);
+      }
+
       // Download the image from object storage
       const objectStorageService = new ObjectStorageService();
-      const imageFile = await objectStorageService.getObjectEntityFile(image.currentUrl);
+      const imageFile = await objectStorageService.getObjectEntityFile(sourceImageUrl);
       
       // Download the file contents to a buffer
       const [sourceImageBuffer] = await imageFile.download();

@@ -109,10 +109,18 @@ export default function EditorPage() {
     
     try {
       // Call the backend API to generate the edit
-      response = await apiRequest("POST", "/api/edits", {
+      // If a base edit is selected, pass it to use as the source image
+      const requestBody: any = {
         imageId: uploadedImage.id,
         prompt: prompt,
-      });
+      };
+      
+      if (currentBaseEditId !== null) {
+        requestBody.baseEditId = currentBaseEditId;
+        console.log('Using edit as base:', currentBaseEditId);
+      }
+      
+      response = await apiRequest("POST", "/api/edits", requestBody);
 
       if (!response.ok) {
         // Try to parse error response
