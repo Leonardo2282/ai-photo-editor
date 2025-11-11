@@ -1,0 +1,51 @@
+Implement the following two features in the Image Editor:
+
+FEATURE 1: "Use as Base" Button
+WHEN user clicks the "Use as Base" button on any image in the Edit History
+THEN set that image as the new base image for future edits
+AND keep all existing Edit History intact (do not clear it)
+AND all subsequent edits will be applied to this new base image instead of the original uploaded image
+AND visually indicate in the UI which image is currently being used as the base
+
+FEATURE 2: "Save" Button with Overwrite Toggle
+ADD a toggle switch labeled "Overwrite Last Save" positioned to the right of the "Edit History" heading, above all image thumbnails
+
+WHEN user clicks the "Save" button on any image in the Edit History
+THEN check the state of the "Overwrite Last Save" toggle
+IF toggle is ON:
+  THEN find the most recently saved image from this project in the database (ORDER BY created_at DESC LIMIT 1)
+  AND update that database record with the current image being saved
+  AND preserve the original created_at timestamp
+  AND update the updated_at timestamp to now
+  AND show a toast notification: "Previous save overwritten"
+  NOTE: If the most recently saved image is the original uploaded image (the base), overwrite it anyway
+ELSE (toggle is OFF):
+  THEN create a new record in the database
+  AND save the current image as a new entry
+  AND link it to the current project
+  AND show a toast notification: "Saved as new image"
+END IF
+
+UI REQUIREMENTS:
+1. Add "Use as Base" button to each image card in the Edit History
+2. Add "Save" button to each image card in the Edit History
+3. Add a toggle switch labeled "Overwrite Last Save" positioned to the right of the "Edit History" heading
+4. The toggle should be OFF by default
+5. When an image is set as base via "Use as Base", add a visual indicator (e.g., a badge saying "Current Base")
+6. Show which images have been saved to the database (e.g., a cloud icon or "Saved" badge)
+
+DATABASE SCHEMA:
+Ensure the images table has the following relevant fields:
+- id (primary key)
+- project_id (foreign key)
+- user_id (foreign key)
+- image_url (string)
+- is_base (boolean) - indicates if this is the original uploaded image
+- created_at (timestamp)
+- updated_at (timestamp)
+
+LOGIC CLARIFICATIONS:
+- "Most recently saved image" means the image with the latest created_at timestamp in the database for this project
+- Edit History is an in-memory/session list of all edits made during the current editing session
+- When "Use as Base" is clicked, it does NOT save to database automatically, it only changes which image is used for future edits
+- When "Save" is clicked, it saves the selected image from Edit History to the database

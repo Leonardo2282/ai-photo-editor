@@ -46,6 +46,8 @@ export type User = typeof users.$inferSelect;
 export const images = pgTable("images", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  parentImageId: integer("parent_image_id").references((): any => images.id, { onDelete: "cascade" }),
+  isOriginal: integer("is_original").notNull().default(1),
   originalUrl: text("original_url").notNull(),
   currentUrl: text("current_url").notNull(),
   fileName: varchar("file_name").notNull(),
@@ -56,6 +58,7 @@ export const images = pgTable("images", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("images_user_id_idx").on(table.userId),
+  index("images_parent_id_idx").on(table.parentImageId),
 ]);
 
 export const insertImageSchema = createInsertSchema(images).omit({
@@ -74,10 +77,12 @@ export const edits = pgTable("edits", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   prompt: text("prompt").notNull(),
   resultUrl: text("result_url").notNull(),
+  savedImageId: integer("saved_image_id").references(() => images.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("edits_image_id_idx").on(table.imageId),
   index("edits_user_id_idx").on(table.userId),
+  index("edits_saved_image_id_idx").on(table.savedImageId),
 ]);
 
 export const insertEditSchema = createInsertSchema(edits).omit({
