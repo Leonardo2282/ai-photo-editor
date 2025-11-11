@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload as UploadIcon } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Image } from "@shared/schema";
+import type { Image, Edit } from "@shared/schema";
+
+type EditWithUI = Edit & { isSaved: boolean };
 
 export default function EditorPage() {
   const [uploadedImage, setUploadedImage] = useState<Image | null>(null);
@@ -22,16 +24,7 @@ export default function EditorPage() {
   const [overwriteLastSave, setOverwriteLastSave] = useState(false);
   const { toast } = useToast();
   
-  // Mock data for prototype
-  const [edits, setEdits] = useState([
-    {
-      id: 1,
-      thumbnailUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=200&fit=crop",
-      prompt: "Make the sky more dramatic with sunset colors",
-      timestamp: "2 mins ago",
-      isSaved: false
-    }
-  ]);
+  const [edits, setEdits] = useState<EditWithUI[]>([]);
 
   const mockSuggestions = [
     { id: 1, prompt: "Make the sky more dramatic with sunset colors", category: "lighting" },
@@ -131,14 +124,11 @@ export default function EditorPage() {
         throw new Error("Failed to generate edit");
       }
 
-      const edit = await response.json();
+      const edit: Edit = await response.json();
       
       // Add the new edit to the list
-      const newEdit = {
-        id: edit.id,
-        thumbnailUrl: edit.resultUrl,
-        prompt: edit.prompt,
-        timestamp: "Just now",
+      const newEdit: EditWithUI = {
+        ...edit,
         isSaved: false,
       };
       
@@ -289,12 +279,25 @@ export default function EditorPage() {
             {isProcessing && <ProcessingIndicator progress={65} />}
             
             {showComparison ? (
-              <div className="rounded-lg overflow-hidden border shadow-lg">
-                <BeforeAfterSlider
-                  beforeImage={uploadedImage.originalUrl}
-                  afterImage={uploadedImage.currentUrl}
-                />
-              </div>
+              (() => {
+                const baseEdit = currentBaseEditId !== null 
+                  ? edits.find(e => e.id === currentBaseEditId)
+                  : null;
+                const baseImageUrl = baseEdit?.resultUrl || uploadedImage.originalUrl;
+                const isUsingBase = currentBaseEditId !== null && baseEdit !== undefined;
+                
+                return (
+                  <div className="rounded-lg overflow-hidden shadow-lg">
+                    <BeforeAfterSlider
+                      beforeImage={baseImageUrl}
+                      afterImage={uploadedImage.currentUrl}
+                      beforeLabel={isUsingBase ? "Base" : "Original"}
+                      afterLabel="Edited"
+                      afterPrompt={edits.length > 0 ? edits[0]?.prompt : undefined}
+                    />
+                  </div>
+                );
+              })()
             ) : (
               <ImageCanvas imageUrl={uploadedImage.currentUrl} />
             )}

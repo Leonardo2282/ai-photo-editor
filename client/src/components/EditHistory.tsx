@@ -3,17 +3,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import EditHistoryItem from "./EditHistoryItem";
 import { History, Sparkles } from "lucide-react";
+import type { Edit } from "@shared/schema";
 
-interface Edit {
-  id: number;
-  thumbnailUrl: string;
-  prompt: string;
-  timestamp: string;
-  isSaved: boolean;
-}
+type EditWithUI = Edit & { isSaved: boolean };
 
 interface EditHistoryProps {
-  edits: Edit[];
+  edits: EditWithUI[];
   activeEditId?: number;
   currentBaseEditId: number | null;
   overwriteLastSave: boolean;
@@ -74,7 +69,7 @@ export default function EditHistory({
             edits.map((edit) => (
               <EditHistoryItem
                 key={edit.id}
-                {...edit}
+                edit={edit}
                 isActive={edit.id === activeEditId}
                 isBase={edit.id === currentBaseEditId}
                 onSave={() => onSave(edit.id)}
