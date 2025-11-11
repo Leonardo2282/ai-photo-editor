@@ -44,6 +44,7 @@ export async function editImageWithGemini(
     }
 
     // Use generateContent with multimodal input
+    // Note: Do NOT specify responseModalities - let model return both text and image
     const response = await genAI.models.generateContent({
       model: "gemini-2.0-flash-preview-image-generation",
       contents: [
@@ -57,17 +58,15 @@ export async function editImageWithGemini(
               },
             },
             {
-              text: `Edit this image based on the following instruction: ${request.prompt}\n\nReturn only the edited image.`,
+              text: `Edit this image based on the following instruction: ${request.prompt}`,
             },
           ],
         },
       ],
-      config: {
-        responseModalities: ["image"],
-      },
     });
 
     // Extract the generated image from response
+    // The model returns both text and image parts
     const candidates = response.candidates;
     if (!candidates || candidates.length === 0) {
       throw new Error("No candidates returned from Gemini API");
@@ -79,14 +78,15 @@ export async function editImageWithGemini(
     }
 
     const parts = content.parts;
-    if (!parts) {
+    if (!parts || parts.length === 0) {
       throw new Error("No parts in response");
     }
 
+    // Find the part with inline image data (not the text part)
     const imagePart = parts.find((part: any) => part.inlineData);
 
     if (!imagePart || !imagePart.inlineData) {
-      throw new Error("No image data in response");
+      throw new Error("No image data in response. Response contained only text.");
     }
 
     return {
