@@ -281,8 +281,8 @@ export default function EditorPage() {
             {showComparison ? (
               <div className="rounded-lg overflow-hidden border shadow-lg">
                 <BeforeAfterSlider
-                  beforeImage={uploadedImage.currentUrl}
-                  afterImage="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop&sat=-100"
+                  beforeImage={uploadedImage.originalUrl}
+                  afterImage={uploadedImage.currentUrl}
                 />
               </div>
             ) : (
