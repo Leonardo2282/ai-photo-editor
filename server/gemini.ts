@@ -1,4 +1,4 @@
-import { GoogleGenAI, RawReferenceImage } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -14,53 +14,84 @@ export interface ImageEditResult {
 
 /**
  * Edit an image using Gemini 2.5 Flash Image (Nano Banana) model
+ * Uses generateContent with multimodal approach
  */
 export async function editImageWithGemini(
   request: ImageEditRequest
 ): Promise<ImageEditResult> {
   try {
-    // Fetch the image from the URL
-    const imageResponse = await fetch(request.imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+    // Parse data URL to get image data and mime type
+    let imageBase64: string;
+    let mimeType: string;
+
+    if (request.imageUrl.startsWith("data:")) {
+      // Parse data URL
+      const matches = request.imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) {
+        throw new Error("Invalid data URL format");
+      }
+      mimeType = matches[1];
+      imageBase64 = matches[2];
+    } else {
+      // Fetch from URL
+      const imageResponse = await fetch(request.imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+      }
+      const imageBuffer = await imageResponse.arrayBuffer();
+      imageBase64 = Buffer.from(imageBuffer).toString("base64");
+      mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
     }
 
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const imageBase64 = Buffer.from(imageBuffer).toString("base64");
-    const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
-
-    // Create a raw reference image with the base image to edit
-    const rawReferenceImage = new RawReferenceImage();
-    rawReferenceImage.referenceImage = {
-      imageBytes: imageBase64,
-      mimeType,
-    };
-
-    // Call the editImage API
-    const response = await genAI.models.editImage({
+    // Use generateContent with multimodal input
+    const response = await genAI.models.generateContent({
       model: "gemini-2.5-flash-image",
-      prompt: request.prompt,
-      referenceImages: [rawReferenceImage],
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType,
+                data: imageBase64,
+              },
+            },
+            {
+              text: `Edit this image based on the following instruction: ${request.prompt}\n\nReturn only the edited image.`,
+            },
+          ],
+        },
+      ],
       config: {
-        numberOfImages: 1,
-        includeRaiReason: true,
+        responseModalities: ["image"],
       },
     });
 
-    // Extract the generated image
-    const generatedImages = response.generatedImages;
-    if (!generatedImages || generatedImages.length === 0) {
-      throw new Error("No images generated from Gemini API");
+    // Extract the generated image from response
+    const candidates = response.candidates;
+    if (!candidates || candidates.length === 0) {
+      throw new Error("No candidates returned from Gemini API");
     }
 
-    const image = generatedImages[0].image;
-    if (!image || !image.imageBytes) {
+    const content = candidates[0].content;
+    if (!content) {
+      throw new Error("No content in response");
+    }
+
+    const parts = content.parts;
+    if (!parts) {
+      throw new Error("No parts in response");
+    }
+
+    const imagePart = parts.find((part: any) => part.inlineData);
+
+    if (!imagePart || !imagePart.inlineData) {
       throw new Error("No image data in response");
     }
 
     return {
-      imageData: image.imageBytes,
-      mimeType: image.mimeType || "image/jpeg",
+      imageData: imagePart.inlineData.data || "",
+      mimeType: imagePart.inlineData.mimeType || "image/jpeg",
     };
   } catch (error) {
     console.error("Gemini API error:", error);
