@@ -8,6 +8,20 @@ Users can upload images, describe desired transformations in plain English (e.g.
 
 ## Recent Changes (November 11, 2025)
 
+**"Use as Base" and "Save with Overwrite" Features - COMPLETE**
+- Added complete workflow for using any edit as the base for future AI transformations
+- Implemented "Use as Base" button on each edit history item with visual "Current Base" badge
+- Backend accepts optional baseEditId parameter in POST /api/edits to use specific edit's resultUrl
+- Added "Overwrite Last Save" toggle in Edit History header (default OFF)
+- Implemented save endpoint (POST /api/edits/:editId/save) with overwrite logic:
+  - Toggle OFF: Creates new image record in database (isOriginal=0, parentImageId set)
+  - Toggle ON: Updates most recently saved child image instead of creating new record
+- Updated schema with parentImageId, isOriginal, and savedImageId fields
+- Save/overwrite creates separate image records that appear in gallery
+- Full ownership validation and cascade delete support
+- Visual indicators: "Saved" badge for saved edits, "Current Base" badge for base image
+- End-to-end flow verified by architect: upload → multiple edits → use as base → save with overwrite ✓
+
 **Gemini AI Image Editing Integration - COMPLETE**
 - Integrated Google Gemini 2.5 Flash Image (Nano Banana) model for AI-powered image transformations
 - Implemented POST /api/edits endpoint with full image editing pipeline:
@@ -109,8 +123,12 @@ Preferred communication style: Simple, everyday language.
 **Database Schema**
 - `sessions` table: sid (primary key), sess (jsonb), expire (timestamp) - Required for Replit Auth
 - `users` table: id (varchar UUID), email, firstName, lastName, profileImageUrl, createdAt, updatedAt
-- `images` table: id (serial), userId (FK), originalUrl, currentUrl, fileName, fileSize, width, height, createdAt, updatedAt
-- `edits` table: id (serial), imageId (FK), userId (FK), prompt, resultUrl, createdAt
+- `images` table: id (serial), userId (FK), parentImageId (FK to images, nullable), isOriginal (integer default 1), originalUrl, currentUrl, fileName, fileSize, width, height, createdAt, updatedAt
+  - isOriginal=1: Original uploaded image
+  - isOriginal=0: Saved edit (child image)
+  - parentImageId: Links saved edits back to their original upload
+- `edits` table: id (serial), imageId (FK), userId (FK), prompt, resultUrl, savedImageId (FK to images, nullable), createdAt
+  - savedImageId: Links edit to the gallery image created when it was saved
 - Foreign keys with cascade delete for data integrity
 - Schema uses Drizzle's `pgTable` with type inference for full TypeScript support
 - Zod validation schemas derived from Drizzle schemas via `createInsertSchema`
@@ -121,6 +139,11 @@ Preferred communication style: Simple, everyday language.
 
 **API Structure**
 - REST endpoints prefixed with `/api`
+- Key endpoints:
+  - POST /api/edits - Create AI edit with optional baseEditId parameter
+  - POST /api/edits/:editId/save - Save edit to gallery with overwrite option
+  - PUT /api/images/:id - Update image metadata
+  - GET /api/images - Get user's gallery images
 - Request/response logging middleware for debugging
 - JSON body parsing with raw body capture for webhooks
 - Error handling with proper HTTP status codes
