@@ -21,7 +21,7 @@ export default function GalleryPage() {
     id: img.id,
     thumbnailUrl: img.currentUrl,
     prompt: img.fileName, // Use filename as fallback since we don't have prompts on images
-    createdAt: formatDistanceToNow(new Date(img.createdAt), { addSuffix: true }),
+    createdAt: formatDistanceToNow(img.createdAt ? new Date(img.createdAt) : new Date(), { addSuffix: true }),
     originalUrl: img.originalUrl,
     editedUrl: img.currentUrl,
   }));

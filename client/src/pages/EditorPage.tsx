@@ -61,7 +61,7 @@ export default function EditorPage() {
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     try {
-      if (result.successful.length === 0) {
+      if (!result.successful || result.successful.length === 0) {
         throw new Error("No files uploaded");
       }
 
