@@ -97,23 +97,58 @@ export default function EditorPage() {
     }
   };
 
-  const handlePromptSubmit = (prompt: string) => {
+  const handlePromptSubmit = async (prompt: string) => {
+    if (!uploadedImage) return;
+    
     setIsProcessing(true);
     console.log('Processing prompt:', prompt);
     
-    // Simulate AI processing
-    setTimeout(() => {
+    try {
+      // Call the backend API to generate the edit
+      const response = await apiRequest("POST", "/api/edits", {
+        imageId: uploadedImage.id,
+        prompt: prompt,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate edit");
+      }
+
+      const edit = await response.json();
+      
+      // Add the new edit to the list
       const newEdit = {
-        id: edits.length + 1,
-        thumbnailUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=200&fit=crop",
-        prompt,
+        id: edit.id,
+        thumbnailUrl: edit.resultUrl,
+        prompt: edit.prompt,
         timestamp: "Just now",
-        isSaved: false
+        isSaved: false,
       };
+      
       setEdits([newEdit, ...edits]);
-      setIsProcessing(false);
+      
+      // Update the current image to show the edited version
+      setUploadedImage({
+        ...uploadedImage,
+        currentUrl: edit.resultUrl,
+      });
+      
       setShowComparison(true);
-    }, 2000);
+      
+      toast({
+        title: "Edit complete!",
+        description: "Your image has been edited successfully",
+      });
+    } catch (error) {
+      console.error('Error generating edit:', error);
+      toast({
+        title: "Edit failed",
+        description: "Failed to generate edit. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleSaveEdit = async (id: number) => {
@@ -121,9 +156,7 @@ export default function EditorPage() {
       const edit = edits.find(e => e.id === id);
       if (!edit || !uploadedImage) return;
 
-      // TODO: Once AI is integrated, fetch the edit from the database to get the resultUrl
-      // For now, using thumbnailUrl from mock data for prototype purposes
-      // Real implementation will use: const dbEdit = await fetchEdit(id); dbEdit.resultUrl
+      // Use the edit's resultUrl (thumbnailUrl) for the saved version
       const editedImageUrl = edit.thumbnailUrl;
 
       // Update the image's currentUrl to the edit's result

@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI, RawReferenceImage } from "@google/genai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export interface ImageEditRequest {
   imageUrl: string;
@@ -19,9 +19,6 @@ export async function editImageWithGemini(
   request: ImageEditRequest
 ): Promise<ImageEditResult> {
   try {
-    // Use Gemini 2.5 Flash Image model (Nano Banana)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
-
     // Fetch the image from the URL
     const imageResponse = await fetch(request.imageUrl);
     if (!imageResponse.ok) {
@@ -30,39 +27,40 @@ export async function editImageWithGemini(
 
     const imageBuffer = await imageResponse.arrayBuffer();
     const imageBase64 = Buffer.from(imageBuffer).toString("base64");
+    const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
-    // Prepare the request
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: imageBase64,
-          mimeType: imageResponse.headers.get("content-type") || "image/jpeg",
-        },
-      },
-      {
-        text: request.prompt,
-      },
-    ]);
+    // Create a raw reference image with the base image to edit
+    const rawReferenceImage = new RawReferenceImage();
+    rawReferenceImage.referenceImage = {
+      imageBytes: imageBase64,
+      mimeType,
+    };
 
-    const response = result.response;
-    
-    // Extract the generated image from the response
-    // The Gemini API returns images in the candidates' content parts
-    const candidates = response.candidates;
-    if (!candidates || candidates.length === 0) {
-      throw new Error("No candidates returned from Gemini API");
+    // Call the editImage API
+    const response = await genAI.models.editImage({
+      model: "gemini-2.5-flash-image",
+      prompt: request.prompt,
+      referenceImages: [rawReferenceImage],
+      config: {
+        numberOfImages: 1,
+        includeRaiReason: true,
+      },
+    });
+
+    // Extract the generated image
+    const generatedImages = response.generatedImages;
+    if (!generatedImages || generatedImages.length === 0) {
+      throw new Error("No images generated from Gemini API");
     }
 
-    const parts = candidates[0].content.parts;
-    const imagePart = parts.find((part: any) => part.inlineData);
-    
-    if (!imagePart || !imagePart.inlineData) {
+    const image = generatedImages[0].image;
+    if (!image || !image.imageBytes) {
       throw new Error("No image data in response");
     }
 
     return {
-      imageData: imagePart.inlineData.data,
-      mimeType: imagePart.inlineData.mimeType,
+      imageData: image.imageBytes,
+      mimeType: image.mimeType || "image/jpeg",
     };
   } catch (error) {
     console.error("Gemini API error:", error);
