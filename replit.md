@@ -6,7 +6,22 @@ An AI-powered photo editing web application that enables users to transform imag
 
 Users can upload images, describe desired transformations in plain English (e.g., "make the sky more dramatic with sunset colors"), and watch AI-powered edits happen in real-time. The app maintains edit history, allows before/after comparisons, and saves edited images to a personal gallery.
 
-## Recent Changes (November 10, 2025)
+## Recent Changes (November 11, 2025)
+
+**Comprehensive Design Enhancement**
+- Enhanced visual design across entire application with elegant, cohesive styling
+- **GalleryPage**: Improved typography (text-4xl headings), better spacing (max-w-6xl, gap-8), enhanced empty states
+- **GalleryItem**: Added smooth hover animations (scale-110, duration-300), elegant overlay with backdrop-blur-sm
+- **ImageDetailModal**: Larger layout (max-w-6xl), Sparkles icon accent, improved spacing (p-6)
+- **EditHistory**: Enhanced sidebar with bg-card/50, primary-colored icons, refined empty states
+- **EditHistoryItem**: Better card design with hover states, Sparkles icons, improved spacing (p-4)
+- **EditorPage**: Improved workspace layout, centered content (max-w-5xl), enhanced upload state
+- **PromptInput**: Larger input (min-h-24), border-2 focus states, keyboard shortcuts hint
+- **PromptSuggestions**: Better visual hierarchy with primary Sparkles icon
+- Fixed TypeScript errors for null checking in EditorPage and GalleryPage
+- All changes follow design_guidelines.md - Inter font, consistent spacing scale, Figma/Linear-inspired polish
+
+**Previous Changes (November 10, 2025)**
 
 **Save Edit and Gallery Features**
 - Added PUT /api/images/:id endpoint to update image's currentUrl when edits are saved
