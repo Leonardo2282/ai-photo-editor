@@ -223,19 +223,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      // Build the full URL for the image
+      // Download the image from object storage
       const objectStorageService = new ObjectStorageService();
-      const imageUrl = `${req.protocol}://${req.get("host")}${image.currentUrl}`;
+      const imageFile = await objectStorageService.getObjectEntityFile(image.currentUrl);
+      
+      // Download the file contents to a buffer
+      const [sourceImageBuffer] = await imageFile.download();
+      
+      // Create a data URL from the buffer
+      const sourceImageBase64 = sourceImageBuffer.toString("base64");
+      const contentType = (await imageFile.getMetadata())[0].contentType || "image/jpeg";
+      const imageDataUrl = `data:${contentType};base64,${sourceImageBase64}`;
 
       // Call Gemini API to edit the image
-      console.log("Calling Gemini API to edit image...", { imageUrl, prompt });
+      console.log("Calling Gemini API to edit image...", { prompt });
       const editResult = await editImageWithGemini({
-        imageUrl,
+        imageUrl: imageDataUrl,
         prompt,
       });
 
       // Convert base64 to buffer and upload to object storage
-      const imageBuffer = Buffer.from(editResult.imageData, "base64");
+      const editedImageBuffer = Buffer.from(editResult.imageData, "base64");
       
       // Get presigned upload URL
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
@@ -243,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Upload the edited image
       const uploadResponse = await fetch(uploadURL, {
         method: "PUT",
-        body: imageBuffer,
+        body: editedImageBuffer,
         headers: {
           "Content-Type": editResult.mimeType,
         },
