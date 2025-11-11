@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye } from "lucide-react";
+import { Eye, Sparkles } from "lucide-react";
 
 interface GalleryItemProps {
   id: number;
@@ -13,32 +13,37 @@ interface GalleryItemProps {
 export default function GalleryItem({ id, thumbnailUrl, prompt, createdAt, onClick }: GalleryItemProps) {
   return (
     <Card 
-      className="group overflow-hidden cursor-pointer hover-elevate active-elevate-2"
+      className="group overflow-hidden cursor-pointer transition-all duration-300 hover-elevate active-elevate-2 hover:shadow-lg"
       onClick={onClick}
       data-testid={`card-gallery-${id}`}
     >
-      <div className="aspect-square relative overflow-hidden bg-muted">
+      <div className="aspect-square relative overflow-hidden bg-muted/50">
         <img 
           src={thumbnailUrl} 
           alt={prompt}
-          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-white">
-              <Eye className="h-4 w-4" />
-              <span className="text-sm font-medium">View Details</span>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-background/95 backdrop-blur-sm px-6 py-3 rounded-full border border-border/50 shadow-xl transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">View Details</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
       
-      <div className="p-4 space-y-2">
-        <p className="text-sm font-mono line-clamp-2" data-testid="text-prompt">
-          {prompt}
-        </p>
-        <div className="flex items-center justify-between">
-          <Badge variant="secondary" className="text-xs">
+      <div className="p-5 space-y-3">
+        <div className="flex items-start gap-2">
+          <Sparkles className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+          <p className="text-sm font-mono line-clamp-2 leading-relaxed text-foreground/90" data-testid="text-prompt">
+            {prompt}
+          </p>
+        </div>
+        <div className="flex items-center justify-between pt-1">
+          <Badge variant="secondary" className="text-xs font-normal">
             {createdAt}
           </Badge>
         </div>

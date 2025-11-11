@@ -32,45 +32,45 @@ export default function GalleryPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your gallery...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-sm text-muted-foreground">Loading your gallery...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">My Gallery</h1>
-            <p className="text-muted-foreground mt-1">
-              {galleryImages.length} saved {galleryImages.length === 1 ? 'image' : 'images'}
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12 lg:py-16">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-12">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight">My Gallery</h1>
+            <p className="text-base text-muted-foreground">
+              {galleryImages.length} {galleryImages.length === 1 ? 'image' : 'images'} in your collection
             </p>
           </div>
           <Link href="/editor">
-            <Button data-testid="button-new-edit">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button size="lg" data-testid="button-new-edit" className="gap-2">
+              <Plus className="h-4 w-4" />
               New Edit
             </Button>
           </Link>
         </div>
 
         {galleryImages.length === 0 ? (
-          <div className="text-center py-24">
-            <div className="rounded-full p-6 bg-muted inline-block mb-4">
-              <Plus className="h-12 w-12 text-muted-foreground" />
+          <div className="text-center py-32">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
+              <Plus className="h-10 w-10 text-primary" />
             </div>
-            <h2 className="text-2xl font-semibold mb-2">No images yet</h2>
-            <p className="text-muted-foreground mb-6">
-              Start by uploading and editing your first image
+            <h2 className="text-2xl font-semibold mb-3">No images yet</h2>
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+              Start by uploading and editing your first image to see it appear in your gallery
             </p>
             <Link href="/editor">
-              <Button data-testid="button-start-editing">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button size="lg" data-testid="button-start-editing" className="gap-2">
+                <Plus className="h-4 w-4" />
                 Start Editing
               </Button>
             </Link>
