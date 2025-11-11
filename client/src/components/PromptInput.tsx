@@ -26,7 +26,7 @@ export default function PromptInput({ onSubmit, isProcessing = false }: PromptIn
   };
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-4">
       <div className="relative">
         <Textarea
           placeholder="Describe how you want to transform your image... (e.g., 'make the sky more dramatic' or 'add warm sunset tones')"
@@ -34,29 +34,33 @@ export default function PromptInput({ onSubmit, isProcessing = false }: PromptIn
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isProcessing}
-          className="min-h-20 resize-none font-mono text-base pr-20"
+          className="min-h-24 resize-none font-mono text-base pr-24 border-2 focus-visible:border-primary/50"
           data-testid="input-prompt"
         />
-        <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
+        <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
           {prompt.length}/500
         </div>
       </div>
       
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <p className="text-xs text-muted-foreground">
+          Press Enter to generate, Shift + Enter for new line
+        </p>
         <Button
           onClick={handleSubmit}
           disabled={!prompt.trim() || isProcessing}
-          size="default"
+          size="lg"
           data-testid="button-generate"
+          className="gap-2"
         >
           {isProcessing ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               Generating...
             </>
           ) : (
             <>
-              <Sparkles className="h-4 w-4 mr-2" />
+              <Sparkles className="h-4 w-4" />
               Generate
             </>
           )}

@@ -164,11 +164,13 @@ export default function EditorPage() {
 
   if (!uploadedImage) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="w-full max-w-3xl space-y-8">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold">Start Editing</h1>
-            <p className="text-muted-foreground">Upload an image to begin your AI transformation</p>
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="w-full max-w-3xl space-y-12">
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl font-bold tracking-tight">Start Editing</h1>
+            <p className="text-lg text-muted-foreground">
+              Upload an image to begin your AI-powered transformation
+            </p>
           </div>
           <div className="flex justify-center">
             <ObjectUploader
@@ -176,15 +178,17 @@ export default function EditorPage() {
               maxFileSize={20 * 1024 * 1024}
               onGetUploadParameters={handleGetUploadParameters}
               onComplete={handleUploadComplete}
-              buttonClassName="h-64 w-full max-w-2xl border-2 border-dashed rounded-md hover-elevate active-elevate-2"
+              buttonClassName="h-72 w-full max-w-2xl border-2 border-dashed rounded-lg hover-elevate active-elevate-2 transition-all duration-200"
             >
-              <div className="flex flex-col items-center gap-4">
-                <div className="rounded-full p-4 bg-muted">
-                  <UploadIcon className="h-8 w-8 text-muted-foreground" />
+              <div className="flex flex-col items-center gap-6">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10">
+                  <UploadIcon className="h-10 w-10 text-primary" />
                 </div>
-                <div className="space-y-2">
-                  <p className="text-lg font-medium">Click to upload an image</p>
-                  <p className="text-sm text-muted-foreground">Supports JPEG, PNG, WebP (max 20MB)</p>
+                <div className="space-y-2 text-center">
+                  <p className="text-xl font-semibold">Click to upload an image</p>
+                  <p className="text-sm text-muted-foreground">
+                    Supports JPEG, PNG, WebP (max 20MB)
+                  </p>
                 </div>
               </div>
             </ObjectUploader>
@@ -195,9 +199,9 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-[calc(100vh-4rem)] bg-background">
       {/* Left Sidebar - Edit History */}
-      <div className="w-80 border-r bg-sidebar flex-shrink-0">
+      <div className="w-80 border-r flex-shrink-0">
         <EditHistory
           edits={edits}
           activeEditId={edits[0]?.id}
@@ -208,22 +212,24 @@ export default function EditorPage() {
 
       {/* Main Canvas Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 p-6 overflow-auto">
-          <div className="mb-4">
-            <Button variant="ghost" size="sm" onClick={handleReset} data-testid="button-reset">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+        <div className="flex-1 p-8 overflow-auto">
+          <div className="mb-6">
+            <Button variant="ghost" onClick={handleReset} data-testid="button-reset" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
               Upload Different Image
             </Button>
           </div>
           
-          <div className="relative">
+          <div className="relative max-w-5xl mx-auto">
             {isProcessing && <ProcessingIndicator progress={65} />}
             
             {showComparison ? (
-              <BeforeAfterSlider
-                beforeImage={uploadedImage.currentUrl}
-                afterImage="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop&sat=-100"
-              />
+              <div className="rounded-lg overflow-hidden border shadow-lg">
+                <BeforeAfterSlider
+                  beforeImage={uploadedImage.currentUrl}
+                  afterImage="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop&sat=-100"
+                />
+              </div>
             ) : (
               <ImageCanvas imageUrl={uploadedImage.currentUrl} />
             )}
@@ -231,12 +237,14 @@ export default function EditorPage() {
         </div>
 
         {/* Bottom Prompt Area */}
-        <div className="border-t bg-background p-6 space-y-4">
-          <PromptSuggestions
-            suggestions={mockSuggestions}
-            onSelect={(prompt) => console.log('Selected suggestion:', prompt)}
-          />
-          <PromptInput onSubmit={handlePromptSubmit} isProcessing={isProcessing} />
+        <div className="border-t bg-card/50 backdrop-blur-sm">
+          <div className="max-w-5xl mx-auto p-6 space-y-4">
+            <PromptSuggestions
+              suggestions={mockSuggestions}
+              onSelect={(prompt) => console.log('Selected suggestion:', prompt)}
+            />
+            <PromptInput onSubmit={handlePromptSubmit} isProcessing={isProcessing} />
+          </div>
         </div>
       </div>
     </div>
