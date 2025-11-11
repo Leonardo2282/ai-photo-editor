@@ -13,7 +13,7 @@ export interface ImageEditResult {
 }
 
 /**
- * Edit an image using Gemini 2.5 Flash Image (Nano Banana) model
+ * Edit an image using Gemini 2.0 Flash Image Generation model
  * Uses generateContent with multimodal approach
  */
 export async function editImageWithGemini(
@@ -45,7 +45,7 @@ export async function editImageWithGemini(
 
     // Use generateContent with multimodal input
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-image",
+      model: "gemini-2.0-flash-preview-image-generation",
       contents: [
         {
           role: "user",
@@ -93,8 +93,24 @@ export async function editImageWithGemini(
       imageData: imagePart.inlineData.data || "",
       mimeType: imagePart.inlineData.mimeType || "image/jpeg",
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API error:", error);
-    throw new Error(`Failed to edit image with Gemini: ${error instanceof Error ? error.message : "Unknown error"}`);
+    
+    // Handle specific error types
+    if (error?.message?.includes("quota") || error?.message?.includes("429")) {
+      throw new Error("QUOTA_EXCEEDED: You've reached your API usage limit. Please try again later or check your API quota at https://ai.dev/usage");
+    }
+    
+    if (error?.message?.includes("401") || error?.message?.includes("unauthorized")) {
+      throw new Error("INVALID_API_KEY: Your API key is invalid or expired. Please check your Gemini API key configuration.");
+    }
+    
+    if (error?.message?.includes("403") || error?.message?.includes("forbidden")) {
+      throw new Error("API_ACCESS_DENIED: Access denied. Please ensure your API key has the correct permissions.");
+    }
+    
+    // Generic error handling
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(`Failed to edit image with Gemini: ${errorMessage}`);
   }
 }

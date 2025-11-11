@@ -284,7 +284,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
+      
       console.error("Error creating edit:", error);
+      
+      // Handle specific Gemini API errors
+      if (error instanceof Error) {
+        if (error.message.startsWith("QUOTA_EXCEEDED:")) {
+          return res.status(429).json({ 
+            error: "API quota exceeded",
+            message: "You've reached your Gemini API usage limit. Please try again later or upgrade your plan.",
+            details: error.message.replace("QUOTA_EXCEEDED: ", "")
+          });
+        }
+        
+        if (error.message.startsWith("INVALID_API_KEY:")) {
+          return res.status(500).json({ 
+            error: "Configuration error",
+            message: "API key configuration issue. Please contact support.",
+            details: error.message.replace("INVALID_API_KEY: ", "")
+          });
+        }
+        
+        if (error.message.startsWith("API_ACCESS_DENIED:")) {
+          return res.status(403).json({ 
+            error: "API access denied",
+            message: "Unable to access the image editing service. Please try again later.",
+            details: error.message.replace("API_ACCESS_DENIED: ", "")
+          });
+        }
+      }
+      
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create edit" });
     }
   });

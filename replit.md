@@ -145,13 +145,17 @@ Preferred communication style: Simple, everyday language.
 ### External Dependencies
 
 **AI Integration**
-- Google Gemini 2.5 Flash Image API (`@google/genai` SDK v0.21+)
-- Model: gemini-2.5-flash-image (Nano Banana)
+- Google Gemini 2.0 Flash Image Generation API (`@google/genai` SDK v0.21+)
+- Model: gemini-2.0-flash-preview-image-generation (stable release, no quota bugs)
 - Method: generateContent() with multimodal input (inlineData image + text prompt)
 - Config: responseModalities set to ["image"] for image output
 - Natural language prompt processing for image transformations
 - API key managed via GEMINI_API_KEY environment variable
-- Quota management: Free tier has usage limits; errors surfaced to users gracefully
+- Robust error handling:
+  - Quota exceeded errors (429) → User-friendly message with retry guidance
+  - Invalid API key errors (401) → Configuration error message
+  - Access denied errors (403) → Service unavailable message
+  - All errors logged server-side with structured error responses
 
 **Database Service**
 - Neon PostgreSQL (serverless)

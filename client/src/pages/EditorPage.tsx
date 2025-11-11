@@ -103,14 +103,21 @@ export default function EditorPage() {
     setIsProcessing(true);
     console.log('Processing prompt:', prompt);
     
+    let response: Response | undefined;
+    
     try {
       // Call the backend API to generate the edit
-      const response = await apiRequest("POST", "/api/edits", {
+      response = await apiRequest("POST", "/api/edits", {
         imageId: uploadedImage.id,
         prompt: prompt,
       });
 
       if (!response.ok) {
+        // Try to parse error response
+        const errorData = await response.json();
+        if (errorData?.message) {
+          throw new Error(errorData.message);
+        }
         throw new Error("Failed to generate edit");
       }
 
@@ -141,9 +148,24 @@ export default function EditorPage() {
       });
     } catch (error) {
       console.error('Error generating edit:', error);
+      
+      // Default error message
+      let errorMessage = "Failed to generate edit. Please try again.";
+      let errorTitle = "Edit failed";
+      
+      // Extract error message from caught error
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check for quota exceeded message
+        if (errorMessage.includes("quota") || errorMessage.includes("usage limit")) {
+          errorTitle = "API Quota Exceeded";
+        }
+      }
+      
       toast({
-        title: "Edit failed",
-        description: "Failed to generate edit. Please try again.",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
