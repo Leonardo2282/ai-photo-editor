@@ -1,0 +1,157 @@
+ISSUE: The original uploaded image is missing from the Edit History list.
+
+GOAL: Display the original image as the very first item in the Edit History so the "Use as Base" button can be used on it.
+
+STRATEGY: Update the `EditHistory` component to fetch both the original image data and the edits data, then merge them into a single list.
+
+Use the following reference code snippets as a guide.
+
+═══════════════════════════════════════════════════════════════════════
+REFERENCE CODE PROVIDED:
+═══════════════════════════════════════════════════════════════════════
+
+1. `client/src/components/editor/EditHistory.jsx` (Updated fetch logic)
+2. `client/src/components/editor/EditHistoryItem.jsx` (Updated button logic)
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION INSTRUCTIONS:
+═══════════════════════════════════════════════════════════════════════
+
+1.  **UPDATE `client/src/components/editor/EditHistory.jsx`:**
+
+    - Replace the existing `fetchEditHistory` function with the one provided below.
+    - This new function makes two separate API calls: one for the original image and one for the edits.
+    - It then constructs a unified `historyArray` with the original image at the beginning.
+    - Add robust error handling and loading states.
+
+2.  **UPDATE `client/src/components/editor/EditHistoryItem.jsx`:**
+
+    - Modify the component to ensure the "Use as Base" button is ALWAYS visible, including for the original image.
+    - Use the `isOriginal` flag to conditionally render other buttons like "Save" or "Delete".
+
+═══════════════════════════════════════════════════════════════════════
+CODE SNIPPET 1: `client/src/components/editor/EditHistory.jsx`
+═══════════════════════════════════════════════════════════════════════
+
+```javascript
+import React, { useEffect, useState } from 'react';
+import EditHistoryItem from './EditHistoryItem';
+
+const EditHistory = ({ 
+  imageId, 
+  onUseAsBase, 
+  overwriteToggle, 
+  onToggleChange 
+}) => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (imageId) {
+      fetchEditHistory();
+    }
+  }, [imageId]);
+
+  const fetchEditHistory = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // STEP 1: Fetch original image data
+      const imageResponse = await fetch(`/api/images/${imageId}`);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch original image data (status: ${imageResponse.status})`);
+      }
+      const imageData = await imageResponse.json();
+      
+      console.log('[EditHistory] Original image data fetched:', imageData);
+
+      // Verify original_url exists
+      if (!imageData.original_url) {
+        console.error('[EditHistory] CRITICAL: Missing original_url in response:', imageData);
+        throw new Error('Original image URL is missing from the API response');
+      }
+
+      // STEP 2: Fetch edit history
+      const editsResponse = await fetch(`/api/edits/image/${imageId}`);
+      if (!editsResponse.ok) {
+        throw new Error(`Failed to fetch edits (status: ${editsResponse.status})`);
+      }
+      const editsData = await editsResponse.json();
+      
+      console.log('[EditHistory] Edits data fetched:', editsData);
+
+      // STEP 3: Construct the final history array
+      const historyArray = [
+        {
+          id: `original-${imageId}`,
+          url: imageData.original_url, // <-- The crucial part
+          prompt: 'Original',
+          timestamp: imageData.uploaded_at,
+          isOriginal: true
+        },
+        ...editsData.map(edit => ({
+          id: edit.id,
+          url: edit.edited_url,
+          prompt: edit.prompt_used,
+          timestamp: edit.created_at,
+          isOriginal: false,
+          isSaved: edit.is_saved_to_gallery
+        }))
+      ];
+
+      setHistory(historyArray);
+      setLoading(false);
+      
+      console.log('[EditHistory] Final history constructed successfully:', historyArray);
+    } catch (err) {
+      console.error('[EditHistory] Fatal error loading history:', err);
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="edit-history-loading">Loading Edit History...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="edit-history-error">
+        <p><strong>Error:</strong> {error}</p>
+        <button onClick={fetchEditHistory}>Retry</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="edit-history">
+      <div className="edit-history-header">
+        <h3>Edit History</h3>
+        <label className="overwrite-toggle">
+          <input
+            type="checkbox"
+            checked={overwriteToggle}
+            onChange={(e) => onToggleChange(e.target.checked)}
+          />
+          <span>Overwrite Last Save</span>
+        </label>
+      </div>
+
+      <div className="edit-history-list">
+        {history.map((item, index) => (
+          <EditHistoryItem
+            key={item.id}
+            item={item}
+            index={index}
+            onUseAsBase={() => onUseAsBase(item.url, index)}
+            // Pass other handlers like onSave if needed
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default EditHistory;

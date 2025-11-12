@@ -16,6 +16,15 @@ import type { Image, Edit } from "@shared/schema";
 
 type EditWithUI = Edit & { isSaved: boolean };
 
+type HistoryItem = {
+  id: number | string;
+  resultUrl: string;
+  prompt: string;
+  createdAt: Date | null;
+  isSaved: boolean;
+  isOriginal: boolean;
+};
+
 export default function EditorPage() {
   const [uploadedImage, setUploadedImage] = useState<Image | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -200,11 +209,19 @@ export default function EditorPage() {
     }
   };
 
-  const handleUseAsBase = (id: number) => {
-    setCurrentBaseEditId(id);
+  const handleUseAsBase = (id: number | string) => {
+    // If it's the original image (string ID like "original-1"), set to null
+    // Otherwise use the edit ID
+    const baseEditId = typeof id === 'string' ? null : id;
+    setCurrentBaseEditId(baseEditId);
+    
+    const description = baseEditId === null 
+      ? "Future edits will use the original uploaded image"
+      : "Future edits will be based on this version";
+    
     toast({
       title: "Base image updated",
-      description: "Future edits will be based on this version",
+      description,
     });
   };
 
