@@ -4,7 +4,7 @@ import UploadZone from "@/components/UploadZone";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import ImageCanvas from "@/components/ImageCanvas";
 import PromptInput from "@/components/PromptInput";
-import EditHistory from "@/components/EditHistory";
+import EditHistory, { type HistoryItem } from "@/components/EditHistory";
 import PromptSuggestions from "@/components/PromptSuggestions";
 import ProcessingIndicator from "@/components/ProcessingIndicator";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -15,15 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { Image, Edit } from "@shared/schema";
 
 type EditWithUI = Edit & { isSaved: boolean };
-
-type HistoryItem = {
-  id: number | string;
-  resultUrl: string;
-  prompt: string;
-  createdAt: Date | null;
-  isSaved: boolean;
-  isOriginal: boolean;
-};
 
 export default function EditorPage() {
   const [uploadedImage, setUploadedImage] = useState<Image | null>(null);
