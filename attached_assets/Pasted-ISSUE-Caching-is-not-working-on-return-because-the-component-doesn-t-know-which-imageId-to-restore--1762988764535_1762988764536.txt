@@ -1,0 +1,169 @@
+ISSUE: Caching is not working on return because the component doesn't know which imageId to restore.
+
+GOAL: Implement the proposed solution: store a `last_active_image_id` in localStorage to automatically restore the last session.
+
+STRATEGY: Update `EditorCache` to manage the last active ID and update `EditorPage` to use this ID to restore the session on mount.
+
+Use the following reference code snippets as a guide.
+
+═══════════════════════════════════════════════════════════════════════
+REFERENCE CODE PROVIDED:
+═══════════════════════════════════════════════════════════════════════
+
+1. `client/src/utils/editorCache.js` (Updated with last active ID methods)
+2. `client/src/pages/EditorPage.jsx` (Updated with auto-restore logic)
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION INSTRUCTIONS:
+═══════════════════════════════════════════════════════════════════════
+
+1.  **REPLACE the entire content of `client/src/utils/editorCache.js`** with the new code. It now includes `getLastActiveImageId` and `setLastActiveImageId`.
+
+2.  **REPLACE the entire content of `client/src/pages/EditorPage.jsx`** with the new code. This version includes:
+    -   A new `useEffect` hook that runs on mount.
+    -   It checks for `last_active_image_id`.
+    -   If an ID is found in the cache but not in the URL, it **redirects** the user to the correct URL (`/editor/:id`), triggering a full restore.
+    -   It sets the `last_active_image_id` whenever a new image is being worked on.
+
+═══════════════════════════════════════════════════════════════════════
+CODE SNIPPET 1: `client/src/utils/editorCache.js`
+═══════════════════════════════════════════════════════════════════════
+
+```javascript
+const LAST_ACTIVE_ID_KEY = 'photo_editor_last_active_id';
+
+export const EditorCache = {
+  save(imageId, state) {
+    if (!imageId) return;
+    try {
+      const key = `photo_editor_state_${imageId}`;
+      const serializedState = JSON.stringify(state);
+      localStorage.setItem(key, serializedState);
+      console.log(`[EditorCache] State SAVED for imageId: ${imageId}`);
+    } catch (e) {
+      console.error('[EditorCache] Failed to save state:', e);
+    }
+  },
+
+  load(imageId) {
+    if (!imageId) return null;
+    try {
+      const key = `photo_editor_state_${imageId}`;
+      const serializedState = localStorage.getItem(key);
+      if (serializedState === null) {
+        return null;
+      }
+      console.log(`[EditorCache] State LOADED for imageId: ${imageId}`);
+      return JSON.parse(serializedState);
+    } catch (e) {
+      console.error('[EditorCache] Failed to load state:', e);
+      return null;
+    }
+  },
+
+  clear(imageId) {
+    if (!imageId) return;
+    const key = `photo_editor_state_${imageId}`;
+    localStorage.removeItem(key);
+    console.log(`[EditorCache] State CLEARED for imageId: ${imageId}`);
+  },
+
+  // --- NEW METHODS ---
+  getLastActiveImageId() {
+    return localStorage.getItem(LAST_ACTIVE_ID_KEY);
+  },
+
+  setLastActiveImageId(imageId) {
+    if (!imageId) return;
+    localStorage.setItem(LAST_ACTIVE_ID_KEY, imageId);
+    console.log(`[EditorCache] Last active imageId SET to: ${imageId}`);
+  }
+};
+
+export const debounce = (func, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), delay);
+  };
+};
+
+
+═══════════════════════════════════════════════════════════════════════ CODE SNIPPET 2: client/src/pages/EditorPage.jsx ═══════════════════════════════════════════════════════════════════════
+
+JavaScript
+
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { EditorCache, debounce } from '../utils/editorCache';
+// ... other imports
+
+const EditorPage = () => {
+  const { imageId: imageIdFromUrl } = useParams();
+  const navigate = useNavigate();
+  
+  const [imageId, setImageId] = useState(imageIdFromUrl);
+  // ... other state variables
+  const [isLoading, setIsLoading] = useState(true);
+
+  // --- 1. AUTO-RESTORE SESSION LOGIC --- //
+  useEffect(() => {
+    console.log('[CACHE DEBUG] 1. EditorPage MOUNTED.');
+    if (!imageIdFromUrl) {
+      console.log('[CACHE DEBUG] 1a. No imageId in URL. Checking for last active session...');
+      const lastActiveId = EditorCache.getLastActiveImageId();
+      if (lastActiveId) {
+        console.log(`[CACHE DEBUG] 1b. Found last active ID: ${lastActiveId}. Redirecting...`);
+        navigate(`/editor/${lastActiveId}`, { replace: true });
+      } else {
+        console.log('[CACHE DEBUG] 1c. No last active session found. Waiting for upload.');
+        setIsLoading(false);
+      }
+    } else {
+      // If we have an ID in the URL, proceed with loading
+      setImageId(imageIdFromUrl);
+      EditorCache.setLastActiveImageId(imageIdFromUrl); // Set it as the new last active
+      setIsLoading(false);
+    }
+  }, [imageIdFromUrl, navigate]);
+
+
+  // --- 2. LOADING STATE FROM CACHE --- //
+  useEffect(() => {
+    if (!imageId || isLoading) return;
+
+    console.log(`[CACHE DEBUG] 2. Attempting to load from cache for key: photo_editor_state_${imageId}`);
+    const cachedState = EditorCache.load(imageId);
+    
+    if (cachedState) {
+      console.log('[CACHE DEBUG] 3a. SUCCESS: State found in cache. Restoring.', cachedState);
+      // ... restore state from cachedState
+    } else {
+      console.log('[CACHE DEBUG] 3b. INFO: No state in cache for this ID.');
+    }
+
+    // ... rest of the loading logic
+
+  }, [imageId, isLoading]);
+
+  // ... other effects and handlers from the previous prompt (auto-saving, etc.)
+
+  if (isLoading) {
+    return <div>Loading Editor Session...</div>;
+  }
+
+  if (!imageId) {
+    return <div>Please upload an image to start a new session.</div>;
+  }
+
+  return (
+    <div className="editor-page">
+      {/* ... rest of the JSX ... */}
+    </div>
+  );
+};
+
+export default EditorPage;
+
+
