@@ -27,6 +27,8 @@ export default function EditorPage() {
   const { toast } = useToast();
   
   const [edits, setEdits] = useState<EditWithUI[]>([]);
+  
+  const hasAttemptedRestore = useRef(false);
 
   // Keep refs in sync with state for debounced saves
   const uploadedImageRef = useRef(uploadedImage);
@@ -95,7 +97,10 @@ export default function EditorPage() {
       const image: Image = await response.json();
       setUploadedImage(image);
       
-      // Load cached state for this image
+      // Set as last active image
+      EditorCache.setLastActiveImageId(image.id);
+      
+      // Load cached state for this image (if any)
       loadCachedState(image.id);
 
       toast({
@@ -112,17 +117,92 @@ export default function EditorPage() {
     }
   };
 
-  // Load cached state for an image
-  const loadCachedState = (imageId: number) => {
+  // Fetch image by ID from API
+  const fetchImageById = async (imageId: number): Promise<Image | null> => {
+    try {
+      const response = await apiRequest("GET", `/api/images/${imageId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch image');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('[EditorPage] Failed to fetch image:', error);
+      toast({
+        title: "Failed to load image",
+        description: "Could not restore your editing session",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  // Fetch edit history from API
+  const fetchEditHistory = async (imageId: number): Promise<EditWithUI[]> => {
+    try {
+      const response = await apiRequest("GET", `/api/edits/image/${imageId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch edits');
+      }
+      const edits: Edit[] = await response.json();
+      return edits.map(edit => ({
+        ...edit,
+        isSaved: edit.savedImageId !== null,
+      }));
+    } catch (error) {
+      console.error('[EditorPage] Failed to fetch edit history:', error);
+      return [];
+    }
+  };
+
+  // Load cached state for an image (only UI state, not edits from API)
+  const loadCachedState = (imageId: number, skipEdits: boolean = false) => {
     const cached = EditorCache.load(imageId);
     if (cached) {
       console.log('[EditorPage] Restoring state from cache');
-      setEdits(cached.edits || []);
+      if (!skipEdits) {
+        setEdits(cached.edits || []);
+      }
       setCurrentBaseEditId(cached.currentBaseEditId);
       setPromptText(cached.generateInputText);
       setOverwriteLastSave(cached.overwriteLastSave);
     }
   };
+
+  // Restore complete session (image + edits + cache)
+  const restoreSession = async (imageId: number) => {
+    console.log('[EditorPage] Restoring session for imageId:', imageId);
+    
+    // Fetch image data
+    const image = await fetchImageById(imageId);
+    if (!image) return;
+    
+    setUploadedImage(image);
+    
+    // Fetch edit history from API (source of truth)
+    const editHistory = await fetchEditHistory(imageId);
+    setEdits(editHistory);
+    
+    // Restore cached UI state (prompt, overwrite, base selection) but skip edits since we got them from API
+    loadCachedState(imageId, true);
+    
+    // Set as last active
+    EditorCache.setLastActiveImageId(imageId);
+    
+    console.log('[EditorPage] Session restored successfully');
+  };
+
+  // Auto-restore last session on mount
+  useEffect(() => {
+    // Only run once on first mount
+    if (hasAttemptedRestore.current || uploadedImage) return;
+    hasAttemptedRestore.current = true;
+
+    const lastActiveId = EditorCache.getLastActiveImageId();
+    if (lastActiveId) {
+      console.log('[EditorPage] Found last active session, restoring...');
+      restoreSession(lastActiveId);
+    }
+  }, [uploadedImage]);
 
   // Save state to cache using refs for latest values
   const saveToCacheFromRefs = useCallback(() => {
