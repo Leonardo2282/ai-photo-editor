@@ -387,7 +387,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get edits for an image
+  // Get edits for an image (alternative route pattern)
+  app.get("/api/edits/image/:imageId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const imageId = parseInt(req.params.imageId);
+      if (isNaN(imageId)) {
+        return res.status(400).json({ error: "Invalid image ID" });
+      }
+
+      // Verify image exists and user owns it
+      const image = await storage.getImage(imageId);
+      if (!image) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      if (image.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const imageEdits = await storage.getImageEdits(imageId);
+      res.json(imageEdits);
+    } catch (error) {
+      console.error("Error fetching edits:", error);
+      res.status(500).json({ error: "Failed to fetch edits" });
+    }
+  });
+
+  // Get edits for an image (original route pattern)
   app.get("/api/images/:id/edits", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.claims?.sub;

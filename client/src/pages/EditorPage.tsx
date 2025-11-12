@@ -410,6 +410,31 @@ export default function EditorPage() {
     setOverwriteLastSave(false);
   };
 
+  const handleNewProject = () => {
+    // Cancel any in-flight restore operations
+    currentRestoreToken.current++;
+    
+    if (uploadedImage) {
+      EditorCache.clear(uploadedImage.id);
+    }
+    
+    // Clear the last active ID so session doesn't auto-restore
+    EditorCache.clearLastActiveImageId();
+    
+    // Reset all state
+    setUploadedImage(null);
+    setEdits([]);
+    setShowComparison(false);
+    setCurrentBaseEditId(null);
+    setPromptText("");
+    setOverwriteLastSave(false);
+    
+    toast({
+      title: "New project started",
+      description: "Upload an image to begin editing",
+    });
+  };
+
   // Handle prompt text change with debounced save
   const handlePromptChange = (text: string) => {
     setPromptText(text);
@@ -500,10 +525,13 @@ export default function EditorPage() {
       {/* Main Canvas Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 p-8 overflow-auto">
-          <div className="mb-6">
+          <div className="mb-6 flex items-center gap-3">
             <Button variant="ghost" onClick={handleReset} data-testid="button-reset" className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Upload Different Image
+            </Button>
+            <Button variant="outline" onClick={handleNewProject} data-testid="button-new-project">
+              New Project
             </Button>
           </div>
           

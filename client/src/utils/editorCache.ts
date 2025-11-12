@@ -106,6 +106,17 @@ export const EditorCache = {
       console.error('[EditorCache] Failed to set last active ID:', error);
       return false;
     }
+  },
+
+  clearLastActiveImageId: (): boolean => {
+    try {
+      localStorage.removeItem(LAST_ACTIVE_ID_KEY);
+      console.log('[EditorCache] Last active imageId CLEARED');
+      return true;
+    } catch (error) {
+      console.error('[EditorCache] Failed to clear last active ID:', error);
+      return false;
+    }
   }
 };
 
