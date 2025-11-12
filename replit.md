@@ -8,6 +8,21 @@ Users can upload images, describe desired transformations in plain English (e.g.
 
 ## Recent Changes (November 11, 2025)
 
+**Phase 2: Comparison Slider Visualization Fixes - COMPLETE**
+- Fixed image cropping in comparison slider - changed from object-cover to object-contain
+- Implemented dynamic container height based on image aspect ratio
+- Added ResizeObserver to recalculate height on viewport/parent resize for full responsiveness
+- Fixed slider to use "Use as Base" image on left side instead of always using original
+- Added dynamic labels: "Base" (when base edit selected) vs "Original" (default)
+- Added prompt display below slider showing the edit instruction used
+- Moved labels to bottom of slider for better visibility
+- Improved z-index layering for slider handle visibility
+- Updated type system across all Edit components to use schema types consistently
+- Replaced mock edit structure with actual API Edit type (resultUrl, createdAt, etc.)
+- Added date-fns formatting for relative timestamps ("2 minutes ago")
+- Silent fallback with visual feedback when base edit not found
+- End-to-end tested: comparison slider is now fully responsive and displays correct base images ✓
+
 **"Use as Base" and "Save with Overwrite" Features - COMPLETE**
 - Added complete workflow for using any edit as the base for future AI transformations
 - Implemented "Use as Base" button on each edit history item with visual "Current Base" badge
