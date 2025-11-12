@@ -6,7 +6,21 @@ An AI-powered photo editing web application that enables users to transform imag
 
 Users can upload images, describe desired transformations in plain English (e.g., "make the sky more dramatic with sunset colors"), and watch AI-powered edits happen in real-time. The app maintains edit history, allows before/after comparisons, and saves edited images to a personal gallery.
 
-## Recent Changes (November 11, 2025)
+## Recent Changes (November 12, 2025)
+
+**Original Image in Edit History - COMPLETE**
+- Added original uploaded image as the first item in Edit History list
+- Users can now click "Use as Base" on the original image to reset base selection
+- Original shows "Current Base" badge by default (when no edit is set as base)
+- Original displays with ImageIcon instead of Sparkles for visual distinction
+- Original uses different styling: font-medium for "Original" label vs font-mono for edit prompts
+- Save button hidden for original image (only shows "Use as Base" button)
+- Implemented string ID pattern ("original-{imageId}") to distinguish from numeric edit IDs
+- When original is selected as base, currentBaseEditId set to null → backend uses originalUrl
+- Edit count in sidebar excludes original image (shows "X edits applied")
+- End-to-end tested: Original appears in history, can be set as base, badge toggles correctly ✓
+
+**Previous Changes (November 11, 2025)**
 
 **Phase 2: Comparison Slider Visualization Fixes - COMPLETE**
 - Fixed image cropping in comparison slider - changed from object-cover to object-contain
