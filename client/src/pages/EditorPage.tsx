@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { UploadResult } from "@uppy/core";
 import UploadZone from "@/components/UploadZone";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -27,6 +27,21 @@ export default function EditorPage() {
   const { toast } = useToast();
   
   const [edits, setEdits] = useState<EditWithUI[]>([]);
+
+  // Keep refs in sync with state for debounced saves
+  const uploadedImageRef = useRef(uploadedImage);
+  const editsRef = useRef(edits);
+  const currentBaseEditIdRef = useRef(currentBaseEditId);
+  const overwriteLastSaveRef = useRef(overwriteLastSave);
+  const promptTextRef = useRef(promptText);
+
+  useEffect(() => {
+    uploadedImageRef.current = uploadedImage;
+    editsRef.current = edits;
+    currentBaseEditIdRef.current = currentBaseEditId;
+    overwriteLastSaveRef.current = overwriteLastSave;
+    promptTextRef.current = promptText;
+  }, [uploadedImage, edits, currentBaseEditId, overwriteLastSave, promptText]);
 
   const mockSuggestions = [
     { id: 1, prompt: "Make the sky more dramatic with sunset colors", category: "lighting" },
@@ -109,40 +124,51 @@ export default function EditorPage() {
     }
   };
 
-  // Save state to cache
-  const saveToCache = useCallback(() => {
-    if (!uploadedImage) return;
+  // Save state to cache using refs for latest values
+  const saveToCacheFromRefs = useCallback(() => {
+    const image = uploadedImageRef.current;
+    if (!image) return;
     
-    EditorCache.save(uploadedImage.id, {
-      edits,
-      currentBaseEditId,
-      generateInputText: promptText,
-      overwriteLastSave,
+    // Cancel any pending debounced saves to prevent stale data from overwriting
+    debouncedSaveRef.current.cancel();
+    
+    EditorCache.save(image.id, {
+      edits: editsRef.current,
+      currentBaseEditId: currentBaseEditIdRef.current,
+      generateInputText: promptTextRef.current,
+      overwriteLastSave: overwriteLastSaveRef.current,
     });
-  }, [uploadedImage, edits, currentBaseEditId, promptText, overwriteLastSave]);
+  }, []);
 
-  // Debounced save for prompt text
-  const debouncedSave = useCallback(
-    debounce(() => saveToCache(), 500),
-    [saveToCache]
+  // Create single debounced save instance
+  const debouncedSaveRef = useRef(
+    debounce(() => {
+      const image = uploadedImageRef.current;
+      if (!image) return;
+      
+      EditorCache.save(image.id, {
+        edits: editsRef.current,
+        currentBaseEditId: currentBaseEditIdRef.current,
+        generateInputText: promptTextRef.current,
+        overwriteLastSave: overwriteLastSaveRef.current,
+      });
+    }, 500)
   );
 
-  // Save to cache when state changes
+  // Save to cache immediately when edits, base, or overwrite changes (not debounced)
   useEffect(() => {
     if (uploadedImage) {
-      saveToCache();
+      saveToCacheFromRefs();
     }
-  }, [edits, currentBaseEditId, overwriteLastSave, uploadedImage, saveToCache]);
+  }, [edits, currentBaseEditId, overwriteLastSave, uploadedImage, saveToCacheFromRefs]);
 
   // Save before unmounting
   useEffect(() => {
     return () => {
-      if (uploadedImage) {
-        console.log('[EditorPage] Saving state before unmount');
-        saveToCache();
-      }
+      console.log('[EditorPage] Saving state before unmount');
+      saveToCacheFromRefs();
     };
-  }, [uploadedImage, saveToCache]);
+  }, [saveToCacheFromRefs]);
 
   const handlePromptSubmit = async (prompt: string) => {
     if (!uploadedImage) return;
@@ -283,7 +309,7 @@ export default function EditorPage() {
   // Handle prompt text change with debounced save
   const handlePromptChange = (text: string) => {
     setPromptText(text);
-    debouncedSave();
+    debouncedSaveRef.current();
   };
 
   // Handle suggestion click - append to prompt
@@ -292,7 +318,7 @@ export default function EditorPage() {
       ? `${promptText} ${suggestionText}`
       : suggestionText;
     setPromptText(newText);
-    debouncedSave();
+    debouncedSaveRef.current();
     console.log('[EditorPage] Suggestion selected:', suggestionText);
   };
 

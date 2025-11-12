@@ -87,13 +87,31 @@ export const EditorCache = {
   }
 };
 
+export interface DebouncedFunction<T extends (...args: any[]) => any> {
+  (...args: Parameters<T>): void;
+  cancel: () => void;
+}
+
 export const debounce = <T extends (...args: any[]) => any>(
   func: T,
   delay: number
-): ((...args: Parameters<T>) => void) => {
-  let timeoutId: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
+): DebouncedFunction<T> => {
+  let timeoutId: NodeJS.Timeout | null = null;
+  
+  const debounced = (...args: Parameters<T>) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      func(...args);
+    }, delay);
   };
+  
+  debounced.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+  
+  return debounced;
 };
