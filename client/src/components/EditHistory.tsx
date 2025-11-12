@@ -3,24 +3,30 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import EditHistoryItem from "./EditHistoryItem";
 import { History, Sparkles } from "lucide-react";
-import type { Edit } from "@shared/schema";
 
-type EditWithUI = Edit & { isSaved: boolean };
+export type HistoryItem = {
+  id: number | string;
+  resultUrl: string;
+  prompt: string;
+  createdAt: Date | null;
+  isSaved: boolean;
+  isOriginal: boolean;
+};
 
 interface EditHistoryProps {
-  edits: EditWithUI[];
-  activeEditId?: number;
-  currentBaseEditId: number | null;
+  historyItems: HistoryItem[];
+  activeItemId?: number | string;
+  currentBaseId: number | null;
   overwriteLastSave: boolean;
   onOverwriteToggle: (value: boolean) => void;
   onSave: (id: number) => void;
-  onUseAsBase: (id: number) => void;
+  onUseAsBase: (id: number | string) => void;
 }
 
 export default function EditHistory({ 
-  edits, 
-  activeEditId, 
-  currentBaseEditId,
+  historyItems, 
+  activeItemId, 
+  currentBaseId,
   overwriteLastSave,
   onOverwriteToggle,
   onSave, 
@@ -49,33 +55,41 @@ export default function EditHistory({
         </div>
         
         <p className="text-sm text-muted-foreground">
-          {edits.length} {edits.length === 1 ? 'edit' : 'edits'} applied
+          {historyItems.length > 0 ? `${historyItems.length - 1} ${historyItems.length - 1 === 1 ? 'edit' : 'edits'} applied` : 'No edits yet'}
         </p>
       </div>
       
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-3">
-          {edits.length === 0 ? (
+          {historyItems.length === 0 ? (
             <div className="text-center py-16 px-4">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
                 <Sparkles className="h-8 w-8 text-primary" />
               </div>
-              <p className="text-sm font-medium text-foreground mb-1">No edits yet</p>
+              <p className="text-sm font-medium text-foreground mb-1">No image uploaded</p>
               <p className="text-xs text-muted-foreground">
-                Apply your first edit to see it here
+                Upload an image to get started
               </p>
             </div>
           ) : (
-            edits.map((edit) => (
-              <EditHistoryItem
-                key={edit.id}
-                edit={edit}
-                isActive={edit.id === activeEditId}
-                isBase={edit.id === currentBaseEditId}
-                onSave={() => onSave(edit.id)}
-                onUseAsBase={() => onUseAsBase(edit.id)}
-              />
-            ))
+            historyItems.map((item) => {
+              // For original image, currentBaseId === null means it's the base
+              // For edits, currentBaseId === item.id means it's the base
+              const isBase = item.isOriginal 
+                ? currentBaseId === null 
+                : currentBaseId === item.id;
+              
+              return (
+                <EditHistoryItem
+                  key={item.id}
+                  item={item}
+                  isActive={item.id === activeItemId}
+                  isBase={isBase}
+                  onSave={typeof item.id === 'number' ? () => onSave(item.id as number) : undefined}
+                  onUseAsBase={() => onUseAsBase(item.id)}
+                />
+              );
+            })
           )}
         </div>
       </ScrollArea>

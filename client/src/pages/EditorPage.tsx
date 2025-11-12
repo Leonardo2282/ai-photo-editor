@@ -229,7 +229,28 @@ export default function EditorPage() {
     setUploadedImage(null);
     setEdits([]);
     setShowComparison(false);
+    setCurrentBaseEditId(null);
   };
+
+  // Build combined history array with original image first
+  const historyItems: HistoryItem[] = uploadedImage ? [
+    {
+      id: `original-${uploadedImage.id}`,
+      resultUrl: uploadedImage.originalUrl,
+      prompt: 'Original',
+      createdAt: uploadedImage.createdAt,
+      isSaved: false,
+      isOriginal: true,
+    },
+    ...edits.map(edit => ({
+      id: edit.id,
+      resultUrl: edit.resultUrl,
+      prompt: edit.prompt,
+      createdAt: edit.createdAt,
+      isSaved: edit.isSaved,
+      isOriginal: false,
+    }))
+  ] : [];
 
   if (!uploadedImage) {
     return (
@@ -272,9 +293,9 @@ export default function EditorPage() {
       {/* Left Sidebar - Edit History */}
       <div className="w-80 border-r flex-shrink-0">
         <EditHistory
-          edits={edits}
-          activeEditId={edits[0]?.id}
-          currentBaseEditId={currentBaseEditId}
+          historyItems={historyItems}
+          activeItemId={edits[0]?.id}
+          currentBaseId={currentBaseEditId}
           overwriteLastSave={overwriteLastSave}
           onOverwriteToggle={setOverwriteLastSave}
           onSave={handleSaveEdit}
