@@ -1,0 +1,192 @@
+ISSUE: The session restore is incomplete because the backend is missing critical API endpoints. Additionally, there is no way to start a new project and clear the cache.
+
+GOAL: Implement two features:
+1.  Add the missing backend API endpoints (`GET /api/images/:id` and `GET /api/edits/image/:imageId`) and update the frontend to fetch the complete edit history.
+2.  Add a "New Project" button that clears the current session cache and resets the editor to the initial upload state.
+
+STRATEGY: First, add the routes to the backend. Second, update the frontend to call these routes and add the new button with its clearing logic.
+
+Use the following reference code snippets as a guide.
+
+═══════════════════════════════════════════════════════════════════════
+REFERENCE CODE PROVIDED:
+═══════════════════════════════════════════════════════════════════════
+
+1. `server/routes.ts` (With new GET endpoints)
+2. `client/src/utils/editorCache.js` (With a new cache clearing method)
+3. `client/src/pages/EditorPage.jsx` (With updated data fetching and the "New Project" button)
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION INSTRUCTIONS:
+═══════════════════════════════════════════════════════════════════════
+
+**TASK 1: FIX EDIT HISTORY**
+
+1.  **UPDATE `server/routes.ts`**: Add the two new `GET` endpoints. You can add them after the existing `POST /api/images` route.
+
+2.  **UPDATE `client/src/pages/EditorPage.jsx`**: Modify the `useEffect` hook responsible for loading data. It should now use `Promise.all` to fetch from both new endpoints (`/api/images/:id` and `/api/edits/image/:imageId`) and then combine the results to build the full `editHistory`.
+
+**TASK 2: ADD "NEW PROJECT" FUNCTIONALITY**
+
+1.  **UPDATE `client/src/utils/editorCache.js`**: Add a new method `clearLastActiveImageId()` to remove the session restore key from localStorage.
+
+2.  **UPDATE `client/src/pages/EditorPage.jsx`**:
+    -   Add a "New Project" button to the UI, for example, in the header section.
+    -   Create a `handleNewProject` function that is called on button click.
+    -   This function should call `EditorCache.clear(imageId)` and `EditorCache.clearLastActiveImageId()`.
+    -   Finally, it should call `navigate('/editor', { replace: true })` to reset the view.
+
+═══════════════════════════════════════════════════════════════════════
+CODE SNIPPET 1: `server/routes.ts` (Add these new routes)
+═══════════════════════════════════════════════════════════════════════
+
+```typescript
+// Add these two new routes inside the export default function(app, storage) { ... }
+
+// GET a single image by its ID
+app.get('/api/images/:id', async (req, res) => {
+  try {
+    const imageId = parseInt(req.params.id, 10);
+    if (isNaN(imageId)) {
+      return res.status(400).json({ error: 'Invalid image ID' });
+    }
+    const image = await storage.getImage(imageId);
+    if (!image) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    res.json(image);
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    res.status(500).json({ error: 'Failed to fetch image' });
+  }
+});
+
+// GET all edits for a specific image
+app.get('/api/edits/image/:imageId', async (req, res) => {
+  try {
+    const imageId = parseInt(req.params.imageId, 10);
+    if (isNaN(imageId)) {
+      return res.status(400).json({ error: 'Invalid image ID' });
+    }
+    const edits = await storage.getImageEdits(imageId);
+    res.json(edits);
+  } catch (error) {
+    console.error('Error fetching edits:', error);
+    res.status(500).json({ error: 'Failed to fetch edits' });
+  }
+});
+
+
+═══════════════════════════════════════════════════════════════════════ CODE SNIPPET 2: client/src/utils/editorCache.js (Add this new method) ═══════════════════════════════════════════════════════════════════════
+
+JavaScript
+
+
+// Add this method to the EditorCache object
+
+  clearLastActiveImageId() {
+    localStorage.removeItem(LAST_ACTIVE_ID_KEY);
+    console.log(`[EditorCache] Last active imageId CLEARED`);
+  },
+
+
+═══════════════════════════════════════════════════════════════════════ CODE SNIPPET 3: client/src/pages/EditorPage.jsx (Replace the file content) ═══════════════════════════════════════════════════════════════════════
+
+JavaScript
+
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { EditorCache } from '../utils/editorCache';
+import axios from 'axios';
+
+const EditorPage = () => {
+  const { imageId: imageIdFromUrl } = useParams();
+  const navigate = useNavigate();
+  
+  const [imageId, setImageId] = useState(imageIdFromUrl);
+  const [editHistory, setEditHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // --- NEW: "New Project" Handler ---
+  const handleNewProject = () => {
+    console.log('[DEBUG] Starting new project...');
+    if (imageId) {
+      EditorCache.clear(imageId);
+    }
+    EditorCache.clearLastActiveImageId();
+    navigate('/editor', { replace: true });
+    // Reset state for the new session
+    setImageId(null);
+    setEditHistory([]);
+  };
+
+  // --- UPDATED: Data Fetching Logic ---
+  useEffect(() => {
+    const fetchHistory = async (id) => {
+      try {
+        console.log(`[DEBUG] Fetching history for imageId: ${id}`);
+        const [imageRes, editsRes] = await Promise.all([
+          axios.get(`/api/images/${id}`),
+          axios.get(`/api/edits/image/${id}`)
+        ]);
+
+        const originalImage = imageRes.data;
+        const edits = editsRes.data;
+
+        // Combine original and edits, with original always first
+        const fullHistory = [originalImage, ...edits];
+        setEditHistory(fullHistory);
+        console.log('[DEBUG] Full history loaded:', fullHistory);
+
+      } catch (error) {
+        console.error('Failed to fetch edit history:', error);
+        setEditHistory([]); // Clear history on error
+      }
+    };
+
+    if (imageId) {
+      EditorCache.setLastActiveImageId(imageId);
+      const cachedState = EditorCache.load(imageId);
+      if (cachedState?.editHistory?.length > 0) {
+        console.log('[DEBUG] Restoring history from cache.');
+        setEditHistory(cachedState.editHistory);
+      } else {
+        fetchHistory(imageId);
+      }
+    }
+    setIsLoading(false);
+  }, [imageId]);
+
+  // Auto-restore logic from previous prompt...
+  useEffect(() => {
+    if (!imageIdFromUrl) {
+      const lastActiveId = EditorCache.getLastActiveImageId();
+      if (lastActiveId) {
+        navigate(`/editor/${lastActiveId}`, { replace: true });
+      }
+    }
+  }, [imageIdFromUrl, navigate]);
+
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <div className="editor-page">
+      <header>
+        <h1>Image Editor</h1>
+        <button onClick={handleNewProject}>New Project</button>
+      </header>
+      {/* ... rest of your editor UI ... */}
+      <div className="edit-history-container">
+        <h2>Edit History</h2>
+        {editHistory.map(item => (
+          <div key={item.id || item.originalUrl}>{/* Render history item */}</div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default EditorPage;
+
+
