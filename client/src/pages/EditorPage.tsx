@@ -29,6 +29,7 @@ export default function EditorPage() {
   const [edits, setEdits] = useState<EditWithUI[]>([]);
   
   const hasAttemptedRestore = useRef(false);
+  const currentRestoreToken = useRef<number>(0);
 
   // Keep refs in sync with state for debounced saves
   const uploadedImageRef = useRef(uploadedImage);
@@ -75,6 +76,9 @@ export default function EditorPage() {
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     try {
+      // Cancel any in-flight restore operations
+      currentRestoreToken.current++;
+      
       if (!result.successful || result.successful.length === 0) {
         throw new Error("No files uploaded");
       }
@@ -170,16 +174,31 @@ export default function EditorPage() {
 
   // Restore complete session (image + edits + cache)
   const restoreSession = async (imageId: number) => {
-    console.log('[EditorPage] Restoring session for imageId:', imageId);
+    // Generate unique token for this restore operation
+    const restoreToken = ++currentRestoreToken.current;
+    console.log('[EditorPage] Restoring session for imageId:', imageId, 'token:', restoreToken);
     
     // Fetch image data
     const image = await fetchImageById(imageId);
     if (!image) return;
     
+    // Check if this restore was cancelled (new upload or reset happened)
+    if (restoreToken !== currentRestoreToken.current) {
+      console.log('[EditorPage] Session restore cancelled - token mismatch (new operation started)');
+      return;
+    }
+    
     setUploadedImage(image);
     
     // Fetch edit history from API (source of truth)
     const editHistory = await fetchEditHistory(imageId);
+    
+    // Double-check again after async fetch
+    if (restoreToken !== currentRestoreToken.current) {
+      console.log('[EditorPage] Session restore cancelled after edit fetch - token mismatch');
+      return;
+    }
+    
     setEdits(editHistory);
     
     // Restore cached UI state (prompt, overwrite, base selection) but skip edits since we got them from API
@@ -375,8 +394,13 @@ export default function EditorPage() {
   };
 
   const handleReset = () => {
+    // Cancel any in-flight restore operations
+    currentRestoreToken.current++;
+    
     if (uploadedImage) {
       EditorCache.clear(uploadedImage.id);
+      // Clear last active since user explicitly reset
+      EditorCache.setLastActiveImageId(0);
     }
     setUploadedImage(null);
     setEdits([]);
