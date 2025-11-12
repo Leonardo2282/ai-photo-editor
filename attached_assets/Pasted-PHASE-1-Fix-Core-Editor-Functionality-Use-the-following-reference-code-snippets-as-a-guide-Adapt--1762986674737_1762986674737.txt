@@ -1,0 +1,52 @@
+PHASE 1: Fix Core Editor Functionality
+
+Use the following reference code snippets as a guide. Adapt them to fit the existing codebase structure.
+
+═══════════════════════════════════════════════════════════════════════
+REFERENCE CODE PROVIDED:
+═══════════════════════════════════════════════════════════════════════
+
+1. EditorCache utility (client/src/utils/editorCache.js) - for localStorage management
+2. EditorPage with cache integration (client/src/pages/EditorPage.jsx)
+3. EditHistory component with base image fix (client/src/components/editor/EditHistory.jsx)
+4. PromptSuggestions with clickable cards (client/src/components/suggestions/PromptSuggestions.jsx)
+5. SuggestionCard component (client/src/components/suggestions/SuggestionCard.jsx)
+6. PromptInput with ref support (client/src/components/editor/PromptInput.jsx)
+7. CSS styles for suggestions and toggle
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION INSTRUCTIONS:
+═══════════════════════════════════════════════════════════════════════
+
+ISSUE 2: Editor State Caching
+- CREATE client/src/utils/editorCache.js using the provided code
+- UPDATE client/src/pages/EditorPage.jsx to integrate EditorCache
+- ENSURE debounced auto-save for input text (500ms delay)
+- ADD "New Project" button that clears cache
+- TEST: Navigate away and back - verify state is restored
+
+ISSUE 4: Base Image Display
+- UPDATE client/src/components/editor/EditHistory.jsx
+- ADD error handling for missing original_url
+- ADD console.log statements for debugging
+- VERIFY original image is fetched from /api/images/:id
+- ENSURE original image is shown first in history with "Original" label
+
+ISSUE 5: Clickable Suggestions
+- UPDATE client/src/components/suggestions/PromptSuggestions.jsx
+- CREATE client/src/components/suggestions/SuggestionCard.jsx
+- ADD onClick handler that appends suggestion to input text
+- ADD hover and click animations (CSS provided)
+- ENSURE keyboard accessibility (Enter/Space keys)
+
+═══════════════════════════════════════════════════════════════════════
+KEY POINTS:
+═══════════════════════════════════════════════════════════════════════
+
+- Use the provided code as a REFERENCE, not a direct copy-paste
+- Adapt variable names and structure to match existing codebase
+- Keep existing API endpoints and data structures
+- Add console.log statements for debugging
+- Test each feature individually before moving to next phase
+
+Implement all 3 issues (2, 4, 5) in this phase.

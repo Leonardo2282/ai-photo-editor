@@ -1,0 +1,630 @@
+1. localStorage Cache Manager (Issue 2)
+
+Файл: client/src/utils/editorCache.js
+
+JavaScript
+
+
+// Utility for managing editor state in localStorage
+
+const CACHE_PREFIX = 'photo_editor_state_';
+
+export const EditorCache = {
+  /**
+   * Save editor state to localStorage
+   * @param {string} projectId - Unique project identifier
+   * @param {Object} state - Editor state object
+   */
+  save: (projectId, state) => {
+    try {
+      const cacheKey = `${CACHE_PREFIX}${projectId}`;
+      const cacheData = {
+        projectId,
+        editHistory: state.editHistory || [],
+        currentBaseImageUrl: state.currentBaseImageUrl || null,
+        generateInputText: state.generateInputText || '',
+        overwriteToggleState: state.overwriteToggleState || false,
+        selectedImageIndex: state.selectedImageIndex || 0,
+        lastUpdated: Date.now()
+      };
+      
+      localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+      console.log('[EditorCache] State saved:', cacheKey);
+      return true;
+    } catch (error) {
+      console.error('[EditorCache] Failed to save:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Load editor state from localStorage
+   * @param {string} projectId - Unique project identifier
+   * @returns {Object|null} Cached state or null if not found
+   */
+  load: (projectId) => {
+    try {
+      const cacheKey = `${CACHE_PREFIX}${projectId}`;
+      const cached = localStorage.getItem(cacheKey);
+      
+      if (!cached) {
+        console.log('[EditorCache] No cached state found for:', projectId);
+        return null;
+      }
+      
+      const data = JSON.parse(cached);
+      console.log('[EditorCache] State loaded:', cacheKey, data);
+      return data;
+    } catch (error) {
+      console.error('[EditorCache] Failed to load:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Clear editor state from localStorage
+   * @param {string} projectId - Unique project identifier
+   */
+  clear: (projectId) => {
+    try {
+      const cacheKey = `${CACHE_PREFIX}${projectId}`;
+      localStorage.removeItem(cacheKey);
+      console.log('[EditorCache] State cleared:', cacheKey);
+      return true;
+    } catch (error) {
+      console.error('[EditorCache] Failed to clear:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Clear all editor caches (useful for logout)
+   */
+  clearAll: () => {
+    try {
+      const keys = Object.keys(localStorage);
+      const editorKeys = keys.filter(key => key.startsWith(CACHE_PREFIX));
+      editorKeys.forEach(key => localStorage.removeItem(key));
+      console.log('[EditorCache] All caches cleared:', editorKeys.length);
+      return true;
+    } catch (error) {
+      console.error('[EditorCache] Failed to clear all:', error);
+      return false;
+    }
+  }
+};
+
+// Debounce utility for auto-save
+export const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
+
+
+
+
+2. EditorPage with Cache Integration (Issue 2)
+
+Файл: client/src/pages/EditorPage.jsx
+
+JavaScript
+
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { EditorCache, debounce } from '../utils/editorCache';
+import EditorWorkspace from '../components/editor/EditorWorkspace';
+import EditHistory from '../components/editor/EditHistory';
+import PromptInput from '../components/editor/PromptInput';
+import PromptSuggestions from '../components/suggestions/PromptSuggestions';
+
+const EditorPage = () => {
+  const { imageId } = useParams(); // Project ID from URL
+  const navigate = useNavigate();
+  
+  // Editor state
+  const [editHistory, setEditHistory] = useState([]);
+  const [currentBaseImageUrl, setCurrentBaseImageUrl] = useState(null);
+  const [generateInputText, setGenerateInputText] = useState('');
+  const [overwriteToggleState, setOverwriteToggleState] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load cached state on mount
+  useEffect(() => {
+    if (!imageId) return;
+
+    console.log('[EditorPage] Loading state for imageId:', imageId);
+    
+    // Try to load from cache first
+    const cachedState = EditorCache.load(imageId);
+    
+    if (cachedState) {
+      // Restore from cache
+      setEditHistory(cachedState.editHistory);
+      setCurrentBaseImageUrl(cachedState.currentBaseImageUrl);
+      setGenerateInputText(cachedState.generateInputText);
+      setOverwriteToggleState(cachedState.overwriteToggleState);
+      setSelectedImageIndex(cachedState.selectedImageIndex);
+      setIsLoading(false);
+      console.log('[EditorPage] State restored from cache');
+    } else {
+      // Fetch fresh data from API
+      fetchImageData(imageId);
+    }
+  }, [imageId]);
+
+  // Fetch image data from API
+  const fetchImageData = async (id) => {
+    try {
+      const response = await fetch(`/api/images/${id}`);
+      const data = await response.json();
+      
+      setCurrentBaseImageUrl(data.original_url);
+      setEditHistory([{ url: data.original_url, prompt: 'Original', timestamp: data.uploaded_at }]);
+      setIsLoading(false);
+      
+      // Save initial state to cache
+      saveToCache();
+    } catch (error) {
+      console.error('[EditorPage] Failed to fetch image data:', error);
+      setIsLoading(false);
+    }
+  };
+
+  // Save state to cache
+  const saveToCache = useCallback(() => {
+    if (!imageId) return;
+    
+    EditorCache.save(imageId, {
+      editHistory,
+      currentBaseImageUrl,
+      generateInputText,
+      overwriteToggleState,
+      selectedImageIndex
+    });
+  }, [imageId, editHistory, currentBaseImageUrl, generateInputText, overwriteToggleState, selectedImageIndex]);
+
+  // Debounced auto-save for input text
+  const debouncedSave = useCallback(
+    debounce(() => saveToCache(), 500),
+    [saveToCache]
+  );
+
+  // Save to cache when state changes
+  useEffect(() => {
+    if (!isLoading) {
+      saveToCache();
+    }
+  }, [editHistory, currentBaseImageUrl, overwriteToggleState, selectedImageIndex, isLoading, saveToCache]);
+
+  // Handle input text change with debounced save
+  const handleInputChange = (text) => {
+    setGenerateInputText(text);
+    debouncedSave();
+  };
+
+  // Handle "Use as Base" button
+  const handleUseAsBase = (imageUrl, index) => {
+    setCurrentBaseImageUrl(imageUrl);
+    setSelectedImageIndex(index);
+    console.log('[EditorPage] Base image updated:', imageUrl);
+  };
+
+  // Handle "New Project" - clear cache
+  const handleNewProject = () => {
+    if (confirm('Start a new project? Current progress will be cleared.')) {
+      EditorCache.clear(imageId);
+      navigate('/upload');
+    }
+  };
+
+  // Save before navigating away
+  useEffect(() => {
+    return () => {
+      console.log('[EditorPage] Saving state before unmount');
+      saveToCache();
+    };
+  }, [saveToCache]);
+
+  if (isLoading) {
+    return <div>Loading editor...</div>;
+  }
+
+  return (
+    <div className="editor-page">
+      <header>
+        <button onClick={handleNewProject}>New Project</button>
+      </header>
+      
+      <div className="editor-layout">
+        <EditorWorkspace 
+          currentImage={currentBaseImageUrl}
+          editHistory={editHistory}
+        />
+        
+        <EditHistory
+          history={editHistory}
+          selectedIndex={selectedImageIndex}
+          onUseAsBase={handleUseAsBase}
+          overwriteToggle={overwriteToggleState}
+          onToggleChange={setOverwriteToggleState}
+        />
+      </div>
+      
+      <PromptInput
+        value={generateInputText}
+        onChange={handleInputChange}
+        onSubmit={() => {/* Handle generate */}}
+      />
+      
+      <PromptSuggestions
+        onSuggestionClick={(suggestion) => {
+          const newText = generateInputText 
+            ? `${generateInputText} ${suggestion}` 
+            : suggestion;
+          handleInputChange(newText);
+        }}
+      />
+    </div>
+  );
+};
+
+export default EditorPage;
+
+
+
+
+
+3. EditHistory Component with Base Image Fix (Issue 4)
+
+Файл: client/src/components/editor/EditHistory.jsx
+
+JavaScript
+
+
+import React, { useEffect, useState } from 'react';
+import EditHistoryItem from './EditHistoryItem';
+
+const EditHistory = ({ 
+  imageId, 
+  onUseAsBase, 
+  overwriteToggle, 
+  onToggleChange 
+}) => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchEditHistory();
+  }, [imageId]);
+
+  const fetchEditHistory = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch original image data
+      const imageResponse = await fetch(`/api/images/${imageId}`);
+      if (!imageResponse.ok) {
+        throw new Error('Failed to fetch image data');
+      }
+      const imageData = await imageResponse.json();
+      
+      console.log('[EditHistory] Original image data:', imageData);
+
+      // Verify original_url exists
+      if (!imageData.original_url) {
+        console.error('[EditHistory] Missing original_url in response:', imageData);
+        throw new Error('Original image URL is missing');
+      }
+
+      // Fetch edit history
+      const editsResponse = await fetch(`/api/edits/image/${imageId}`);
+      if (!editsResponse.ok) {
+        throw new Error('Failed to fetch edits');
+      }
+      const editsData = await editsResponse.json();
+      
+      console.log('[EditHistory] Edits data:', editsData);
+
+      // Construct history array: original first, then edits
+      const historyArray = [
+        {
+          id: `original-${imageId}`,
+          url: imageData.original_url, // ← Ensure this is the actual uploaded image
+          prompt: 'Original',
+          timestamp: imageData.uploaded_at,
+          isOriginal: true
+        },
+        ...editsData.map(edit => ({
+          id: edit.id,
+          url: edit.edited_url,
+          prompt: edit.prompt_used,
+          timestamp: edit.created_at,
+          isOriginal: false,
+          isSaved: edit.is_saved_to_gallery
+        }))
+      ];
+
+      setHistory(historyArray);
+      setLoading(false);
+      
+      console.log('[EditHistory] History loaded successfully:', historyArray);
+    } catch (err) {
+      console.error('[EditHistory] Error loading history:', err);
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="edit-history-loading">Loading history...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="edit-history-error">
+        <p>Error: {error}</p>
+        <button onClick={fetchEditHistory}>Retry</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="edit-history">
+      <div className="edit-history-header">
+        <h3>Edit History</h3>
+        <label className="overwrite-toggle">
+          <input
+            type="checkbox"
+            checked={overwriteToggle}
+            onChange={(e) => onToggleChange(e.target.checked)}
+          />
+          <span>Overwrite Last Save</span>
+        </label>
+      </div>
+
+      <div className="edit-history-list">
+        {history.map((item, index) => (
+          <EditHistoryItem
+            key={item.id}
+            item={item}
+            index={index}
+            onUseAsBase={() => onUseAsBase(item.url, index)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default EditHistory;
+
+
+
+
+
+4. Clickable Quick Suggestions (Issue 5)
+
+Файл: client/src/components/suggestions/PromptSuggestions.jsx
+
+JavaScript
+
+
+import React, { useState, useEffect } from 'react';
+import SuggestionCard from './SuggestionCard';
+
+const PromptSuggestions = ({ onSuggestionClick }) => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSuggestions();
+  }, []);
+
+  const fetchSuggestions = async () => {
+    try {
+      const response = await fetch('/api/suggestions');
+      const data = await response.json();
+      setSuggestions(data);
+      setLoading(false);
+    } catch (error) {
+      console.error('[PromptSuggestions] Failed to fetch:', error);
+      setLoading(false);
+    }
+  };
+
+  const handleSuggestionClick = (suggestionText) => {
+    console.log('[PromptSuggestions] Suggestion clicked:', suggestionText);
+    
+    // Call parent handler to append to input field
+    if (onSuggestionClick) {
+      onSuggestionClick(suggestionText);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading suggestions...</div>;
+  }
+
+  return (
+    <div className="prompt-suggestions">
+      <h4>Quick Suggestions</h4>
+      <div className="suggestions-grid">
+        {suggestions.map((suggestion, index) => (
+          <SuggestionCard
+            key={index}
+            text={suggestion.prompt_text}
+            description={suggestion.description}
+            onClick={() => handleSuggestionClick(suggestion.prompt_text)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default PromptSuggestions;
+
+
+Файл: client/src/components/suggestions/SuggestionCard.jsx
+
+JavaScript
+
+
+import React, { useState } from 'react';
+
+const SuggestionCard = ({ text, description, onClick }) => {
+  const [isClicked, setIsClicked] = useState(false);
+
+  const handleClick = () => {
+    // Visual feedback
+    setIsClicked(true);
+    setTimeout(() => setIsClicked(false), 300);
+    
+    // Trigger parent handler
+    onClick();
+  };
+
+  return (
+    <div
+      className={`suggestion-card ${isClicked ? 'clicked' : ''}`}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyPress={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          handleClick();
+        }
+      }}
+    >
+      <p className="suggestion-text">{text}</p>
+      {description && <p className="suggestion-description">{description}</p>}
+    </div>
+  );
+};
+
+export default SuggestionCard;
+
+
+Файл: client/src/index.css (Добавить стили)
+
+CSS
+
+
+/* Quick Suggestions Styles */
+.suggestion-card {
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.suggestion-card:hover {
+  background: #f3f4f6;
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.suggestion-card:active,
+.suggestion-card.clicked {
+  background: #dbeafe;
+  transform: scale(0.98);
+}
+
+.suggestion-text {
+  font-weight: 500;
+  color: #1f2937;
+  margin: 0;
+}
+
+.suggestion-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 4px 0 0 0;
+}
+
+/* Overwrite Toggle */
+.overwrite-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.overwrite-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+
+
+
+
+5. PromptInput Component with Ref Integration
+
+Файл: client/src/components/editor/PromptInput.jsx
+
+JavaScript
+
+
+import React, { useRef, useEffect } from 'react';
+
+const PromptInput = ({ value, onChange, onSubmit, autoFocus = false }) => {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+      // Move cursor to end
+      const length = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(length, length);
+    }
+  }, [autoFocus, value]);
+
+  const handleChange = (e) => {
+    onChange(e.target.value);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
+
+  return (
+    <div className="prompt-input-container">
+      <textarea
+        ref={inputRef}
+        value={value}
+        onChange={handleChange}
+        onKeyPress={handleKeyPress}
+        placeholder="Describe how you want to edit this image..."
+        className="prompt-input"
+        rows={3}
+      />
+      <button onClick={onSubmit} className="generate-button">
+        Generate
+      </button>
+    </div>
+  );
+};
+
+export default PromptInput;
+
+// Export ref for external access
+export { PromptInput };
+
+

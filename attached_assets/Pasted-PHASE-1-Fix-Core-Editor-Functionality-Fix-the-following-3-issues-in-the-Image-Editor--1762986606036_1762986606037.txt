@@ -1,0 +1,117 @@
+PHASE 1: Fix Core Editor Functionality
+
+Fix the following 3 issues in the Image Editor:
+
+═══════════════════════════════════════════════════════════════════════
+ISSUE 2: Editor State Loss on Navigation
+═══════════════════════════════════════════════════════════════════════
+
+PROBLEM: When navigating from "Image Editor" to "Gallery" and back, all editor changes are lost.
+
+SOLUTION:
+IMPLEMENT state caching using localStorage with the following logic:
+
+WHAT TO CACHE (per project):
+1. Edit History (array of all edited images)
+2. Current base image reference
+3. Text in the "Generate" input field
+4. State of "Overwrite Last Save" toggle
+5. Currently selected image in Edit History
+
+CACHE DATA STRUCTURE:
+{
+  projectId: string,
+  editHistory: Array<{url: string, prompt: string, timestamp: number}>,
+  currentBaseImageUrl: string,
+  generateInputText: string,
+  overwriteToggleState: boolean,
+  selectedImageIndex: number,
+  lastUpdated: timestamp
+}
+
+WHEN TO SAVE CACHE:
+- After every edit generation
+- When user changes base image via "Use as Base"
+- When user types in the "Generate" field (debounced, every 500ms)
+- When user toggles "Overwrite Last Save"
+- Before navigating away from the editor
+
+WHEN TO LOAD CACHE:
+- When user navigates to the Image Editor page
+- Check if there's cached data for the current project_id
+- If yes, restore all cached state
+- If no, start with fresh state
+
+WHEN TO CLEAR CACHE:
+- When user manually starts a new project (clicks "New Project" or "Upload New Image")
+- DO NOT clear on logout (keep it persistent in localStorage)
+
+STORAGE KEY FORMAT:
+localStorage key: `photo_editor_state_${project_id}`
+
+
+═══════════════════════════════════════════════════════════════════════
+ISSUE 4: Incorrect Base Image in Edit History
+═══════════════════════════════════════════════════════════════════════
+
+PROBLEM: Edit History shows a stock photo instead of the actual uploaded base image.
+
+SOLUTION:
+DEBUG and fix the Edit History rendering logic:
+
+WHEN initializing Edit History:
+  ENSURE the first item is always the actual uploaded original image
+  VERIFY the image URL points to the correct uploaded file (not a placeholder or stock photo)
+  
+CHECK the following potential causes:
+1. Is the original image URL correctly stored in the database?
+2. Is the image URL being correctly fetched from the database?
+3. Is there a default/placeholder image being used when the URL is missing?
+4. Is the image being correctly passed to the Edit History component?
+
+FIX:
+IF original_image_url is null or undefined:
+  THEN fetch it from the database using the project_id or image_id
+  AND set it as the first item in Edit History
+ELSE:
+  THEN use the existing original_image_url
+END IF
+
+ADD DEBUG LOGGING:
+- Log the original image URL when fetched from database
+- Log the Edit History array before rendering
+- Log any errors in image loading
+
+ENSURE the Edit History component receives the correct original image URL as a prop.
+
+
+═══════════════════════════════════════════════════════════════════════
+ISSUE 5: Non-Interactive Quick Suggestions
+═══════════════════════════════════════════════════════════════════════
+
+PROBLEM: Quick Suggestions are not clickable; users must manually copy/paste.
+
+SOLUTION:
+MAKE Quick Suggestions clickable with the following behavior:
+
+WHEN user clicks on a Quick Suggestion:
+  GET the current text in the "Generate" input field
+  IF the input field is empty:
+    THEN set the input field value to the suggestion text
+  ELSE:
+    THEN append the suggestion text to the existing text with a space separator
+    EXAMPLE: existing text = "make it brighter", suggestion = "add warm tones"
+    RESULT: "make it brighter add warm tones"
+  END IF
+  AND move the cursor to the end of the input field
+  AND focus the input field
+
+UI CHANGES:
+- Add cursor: pointer to Quick Suggestion items
+- Add hover effect (e.g., background color change on hover)
+- Add visual feedback on click (e.g., brief highlight animation)
+
+IMPLEMENTATION:
+- Add onClick handler to each suggestion element
+- Use ref to access the input field and update its value
+- Trigger the input field's onChange event to update state
