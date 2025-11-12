@@ -1,20 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Loader2 } from "lucide-react";
-import { useState } from "react";
 
 interface PromptInputProps {
+  value: string;
+  onChange: (value: string) => void;
   onSubmit: (prompt: string) => void;
   isProcessing?: boolean;
 }
 
-export default function PromptInput({ onSubmit, isProcessing = false }: PromptInputProps) {
-  const [prompt, setPrompt] = useState("");
-
+export default function PromptInput({ value, onChange, onSubmit, isProcessing = false }: PromptInputProps) {
   const handleSubmit = () => {
-    if (prompt.trim() && !isProcessing) {
-      onSubmit(prompt.trim());
-      console.log('Prompt submitted:', prompt);
+    if (value.trim() && !isProcessing) {
+      onSubmit(value.trim());
+      console.log('Prompt submitted:', value);
     }
   };
 
@@ -30,15 +29,15 @@ export default function PromptInput({ onSubmit, isProcessing = false }: PromptIn
       <div className="relative">
         <Textarea
           placeholder="Describe how you want to transform your image... (e.g., 'make the sky more dramatic' or 'add warm sunset tones')"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isProcessing}
           className="min-h-24 resize-none font-mono text-base pr-24 border-2 focus-visible:border-primary/50"
           data-testid="input-prompt"
         />
         <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-          {prompt.length}/500
+          {value.length}/500
         </div>
       </div>
       
@@ -48,7 +47,7 @@ export default function PromptInput({ onSubmit, isProcessing = false }: PromptIn
         </p>
         <Button
           onClick={handleSubmit}
-          disabled={!prompt.trim() || isProcessing}
+          disabled={!value.trim() || isProcessing}
           size="lg"
           data-testid="button-generate"
           className="gap-2"

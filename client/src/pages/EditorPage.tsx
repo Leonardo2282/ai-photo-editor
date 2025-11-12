@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { UploadResult } from "@uppy/core";
 import UploadZone from "@/components/UploadZone";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -13,6 +13,7 @@ import { ArrowLeft, Upload as UploadIcon } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Image, Edit } from "@shared/schema";
+import { EditorCache, debounce } from "@/utils/editorCache";
 
 type EditWithUI = Edit & { isSaved: boolean };
 
@@ -22,6 +23,7 @@ export default function EditorPage() {
   const [showComparison, setShowComparison] = useState(false);
   const [currentBaseEditId, setCurrentBaseEditId] = useState<number | null>(null);
   const [overwriteLastSave, setOverwriteLastSave] = useState(false);
+  const [promptText, setPromptText] = useState("");
   const { toast } = useToast();
   
   const [edits, setEdits] = useState<EditWithUI[]>([]);
@@ -77,6 +79,9 @@ export default function EditorPage() {
 
       const image: Image = await response.json();
       setUploadedImage(image);
+      
+      // Load cached state for this image
+      loadCachedState(image.id);
 
       toast({
         title: "Image uploaded successfully",
@@ -91,6 +96,53 @@ export default function EditorPage() {
       });
     }
   };
+
+  // Load cached state for an image
+  const loadCachedState = (imageId: number) => {
+    const cached = EditorCache.load(imageId);
+    if (cached) {
+      console.log('[EditorPage] Restoring state from cache');
+      setEdits(cached.edits || []);
+      setCurrentBaseEditId(cached.currentBaseEditId);
+      setPromptText(cached.generateInputText);
+      setOverwriteLastSave(cached.overwriteLastSave);
+    }
+  };
+
+  // Save state to cache
+  const saveToCache = useCallback(() => {
+    if (!uploadedImage) return;
+    
+    EditorCache.save(uploadedImage.id, {
+      edits,
+      currentBaseEditId,
+      generateInputText: promptText,
+      overwriteLastSave,
+    });
+  }, [uploadedImage, edits, currentBaseEditId, promptText, overwriteLastSave]);
+
+  // Debounced save for prompt text
+  const debouncedSave = useCallback(
+    debounce(() => saveToCache(), 500),
+    [saveToCache]
+  );
+
+  // Save to cache when state changes
+  useEffect(() => {
+    if (uploadedImage) {
+      saveToCache();
+    }
+  }, [edits, currentBaseEditId, overwriteLastSave, uploadedImage, saveToCache]);
+
+  // Save before unmounting
+  useEffect(() => {
+    return () => {
+      if (uploadedImage) {
+        console.log('[EditorPage] Saving state before unmount');
+        saveToCache();
+      }
+    };
+  }, [uploadedImage, saveToCache]);
 
   const handlePromptSubmit = async (prompt: string) => {
     if (!uploadedImage) return;
@@ -217,10 +269,31 @@ export default function EditorPage() {
   };
 
   const handleReset = () => {
+    if (uploadedImage) {
+      EditorCache.clear(uploadedImage.id);
+    }
     setUploadedImage(null);
     setEdits([]);
     setShowComparison(false);
     setCurrentBaseEditId(null);
+    setPromptText("");
+    setOverwriteLastSave(false);
+  };
+
+  // Handle prompt text change with debounced save
+  const handlePromptChange = (text: string) => {
+    setPromptText(text);
+    debouncedSave();
+  };
+
+  // Handle suggestion click - append to prompt
+  const handleSuggestionSelect = (suggestionText: string) => {
+    const newText = promptText.trim()
+      ? `${promptText} ${suggestionText}`
+      : suggestionText;
+    setPromptText(newText);
+    debouncedSave();
+    console.log('[EditorPage] Suggestion selected:', suggestionText);
   };
 
   // Build combined history array with original image first
@@ -338,9 +411,14 @@ export default function EditorPage() {
           <div className="max-w-5xl mx-auto p-6 space-y-4">
             <PromptSuggestions
               suggestions={mockSuggestions}
-              onSelect={(prompt) => console.log('Selected suggestion:', prompt)}
+              onSelect={handleSuggestionSelect}
             />
-            <PromptInput onSubmit={handlePromptSubmit} isProcessing={isProcessing} />
+            <PromptInput 
+              value={promptText}
+              onChange={handlePromptChange}
+              onSubmit={handlePromptSubmit} 
+              isProcessing={isProcessing} 
+            />
           </div>
         </div>
       </div>
