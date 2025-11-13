@@ -14,7 +14,7 @@ import {
   type InsertProject
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc, and, inArray, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations - Required for Replit Auth
@@ -289,7 +289,7 @@ export class DatabaseStorage implements IStorage {
     const imagesWithoutProject = await db
       .select()
       .from(images)
-      .where(eq(images.projectId, null));
+      .where(isNull(images.projectId));
     return imagesWithoutProject;
   }
   

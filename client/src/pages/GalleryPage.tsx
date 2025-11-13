@@ -1,18 +1,43 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import ProjectCard from "@/components/ProjectCard";
 import ProjectModal from "@/components/ProjectModal";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
 import type { Project, Image } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function GalleryPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const { toast } = useToast();
 
   // Fetch user's projects from the database
   const { data: projects = [], isLoading } = useQuery<(Project & { originalImage?: Image })[]>({
     queryKey: ['/api/projects'],
+  });
+
+  // TEMPORARY: Migration mutation to create projects for existing images
+  const migrateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/migrate-data");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({
+        title: "Migration successful!",
+        description: `Created ${data.projectsCreated} projects and linked ${data.imagesLinked} images.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Migration failed",
+        description: error instanceof Error ? error.message : "Failed to migrate data",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -53,12 +78,25 @@ export default function GalleryPage() {
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               Start by uploading and editing your first image to create a project
             </p>
-            <Link href="/editor">
-              <Button size="lg" data-testid="button-start-editing" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Start Editing
+            <div className="flex gap-3 justify-center">
+              <Link href="/editor">
+                <Button size="lg" data-testid="button-start-editing" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Start Editing
+                </Button>
+              </Link>
+              <Button 
+                size="lg" 
+                variant="outline"
+                onClick={() => migrateMutation.mutate()}
+                disabled={migrateMutation.isPending}
+                data-testid="button-migrate-data" 
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${migrateMutation.isPending ? 'animate-spin' : ''}`} />
+                {migrateMutation.isPending ? 'Migrating...' : 'Restore Old Images'}
               </Button>
-            </Link>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
