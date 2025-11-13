@@ -92,9 +92,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
 
-      // Create image record in database
+      // Create a new project for this image
+      const project = await storage.createProject({
+        userId,
+        name: `Project: ${validatedData.fileName}`,
+      });
+
+      // Create image record in database linked to the project
       const image = await storage.createImage({
         userId,
+        projectId: project.id,
         originalUrl: objectPath,
         currentUrl: objectPath,
         fileName: validatedData.fileName,
@@ -446,6 +453,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching edits:", error);
       res.status(500).json({ error: "Failed to fetch edits" });
+    }
+  });
+
+  // Delete edit
+  app.delete("/api/edits/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const editId = parseInt(req.params.id);
+      if (isNaN(editId)) {
+        return res.status(400).json({ error: "Invalid edit ID" });
+      }
+
+      // Get the edit to verify ownership
+      const [edit] = await db.select().from(edits).where(eq(edits.id, editId));
+      if (!edit) {
+        return res.status(404).json({ error: "Edit not found" });
+      }
+
+      if (edit.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      await storage.deleteEdit(editId);
+      res.json({ message: "Edit deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting edit:", error);
+      res.status(500).json({ error: "Failed to delete edit" });
+    }
+  });
+
+  // Get all projects for the current user
+  app.get("/api/projects", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const projects = await storage.getProjectsForUser(userId);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ error: "Failed to fetch projects" });
+    }
+  });
+
+  // Get a single project with its original image and edits
+  app.get("/api/projects/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: "Invalid project ID" });
+      }
+
+      const project = await storage.getProjectById(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      if (project.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      res.json(project);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ error: "Failed to fetch project" });
+    }
+  });
+
+  // Delete a project
+  app.delete("/api/projects/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: "Invalid project ID" });
+      }
+
+      const project = await storage.getProjectById(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      if (project.userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      await storage.deleteProject(projectId);
+      res.json({ message: "Project deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ error: "Failed to delete project" });
     }
   });
 

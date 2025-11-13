@@ -1,0 +1,148 @@
+ISSUE: The current gallery is a flat list of all images. It needs to be restructured into a project-based system with specific features for managing and interacting with image versions.
+
+GOAL: Implement a project-based gallery system according to the following detailed logic and reference code.
+
+STRATEGY: This will be a multi-step process:
+1.  **Database:** Add a new `projects` table and update the `images` and `edits` tables.
+2.  **Backend:** Create new API endpoints for projects and update existing ones.
+3.  **Frontend:** Build the new UI components for the gallery (grid, modal, cards) and integrate the new API calls.
+
+Use the following reference code snippets as a guide.
+
+═══════════════════════════════════════════════════════════════════════
+REFERENCE CODE PROVIDED:
+═══════════════════════════════════════════════════════════════════════
+
+1.  **Database Schema (`db/schema.sql`)**: New `projects` table and updated `images`/`edits`.
+2.  **Backend Routes (`server/routes.ts`)**: New endpoints for projects.
+3.  **Backend Storage (`server/storage.ts`)**: New methods for project data.
+4.  **Frontend Gallery Page (`client/src/pages/GalleryPage.jsx`)**: Main grid view.
+5.  **Frontend Project Card (`client/src/components/ProjectCard.jsx`)**: Thumbnail card.
+6.  **Frontend Project Modal (`client/src/components/ProjectModal.jsx`)**: Detailed view.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION INSTRUCTIONS:
+═══════════════════════════════════════════════════════════════════════
+
+**TASK 1: DATABASE & BACKEND**
+
+1.  **UPDATE `db/schema.sql`**: Add the new `projects` table. Add a `project_id` foreign key to the `images` table. The `edits` table remains linked to `images`.
+
+2.  **UPDATE `server/storage.ts`**: Add new methods: `createProject`, `getProjectsForUser`, `getProjectById`, `deleteProject`, `deleteEdit`.
+
+3.  **UPDATE `server/routes.ts`**: 
+    -   Modify `POST /api/images` to create a new project when a new original image is uploaded.
+    -   Add `GET /api/projects` to fetch all projects for the current user.
+    -   Add `GET /api/projects/:id` to fetch a single project with its original image and all its edits.
+    -   Add `DELETE /api/projects/:id` to delete a project and all its associated images/edits.
+    -   Add `DELETE /api/edits/:id` to delete a single edit.
+
+**TASK 2: FRONTEND UI & LOGIC**
+
+1.  **REPLACE `client/src/pages/GalleryPage.jsx`**: This component should now fetch projects (`/api/projects`) and render a grid of `ProjectCard` components.
+
+2.  **CREATE `client/src/components/ProjectCard.jsx`**: This component displays the project thumbnail (the original image) and two buttons: "Open Project" and "Open in Editor".
+
+3.  **CREATE `client/src/components/ProjectModal.jsx`**: This modal opens when "Open Project" is clicked. It displays the original image and a list of all its versions. Each version has hover actions: "Delete" and "Start New Project". The modal also has a "Delete Project" button.
+
+4.  **INTEGRATE LOGIC**:
+    -   **"Open Project" button**: Opens the `ProjectModal` with the corresponding project data.
+    -   **"Open in Editor" button**: Navigates to `/editor/:imageId` and restores the full session (this should already work from previous steps).
+    -   **"Delete" (on edit)**: Calls `DELETE /api/edits/:id` and updates the view.
+    -   **"Start New Project" (on edit)**: Creates a new project by re-uploading the selected image data.
+    -   **"Delete Project" (in modal)**: Calls `DELETE /api/projects/:id` and closes the modal, refreshing the gallery.
+
+**TASK 3: UPDATE `Overwrite Last Save` LOGIC**
+
+1.  **UPDATE `POST /api/edits` in `server/routes.ts`**: 
+    -   When a new edit is saved and the `overwrite` flag is `true`:
+    -   Find the previous "last save" for this project (you might need a new column like `is_last_save` in the `edits` table, or just find the latest one by timestamp).
+    -   Delete the previous last save from the database.
+    -   Save the new edit.
+
+═══════════════════════════════════════════════════════════════════════
+CODE SNIPPET 1: `db/schema.sql`
+═══════════════════════════════════════════════════════════════════════
+
+```sql
+CREATE TABLE projects (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL,
+  name VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add project_id to images table
+ALTER TABLE images ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE;
+
+
+═══════════════════════════════════════════════════════════════════════ CODE SNIPPET 2: server/routes.ts (Example for creating a project) ═══════════════════════════════════════════════════════════════════════
+
+TypeScript
+
+
+// Inside POST /api/images
+// ... after successful upload to storage ...
+
+// 1. Create a new project
+const newProject = await storage.createProject(userId, `Project for ${originalFilename}`);
+
+// 2. Create the image record linked to the new project
+const newImage = await storage.createImage(userId, newProject.id, originalUrl, objectKey);
+
+res.status(201).json(newImage);
+
+
+═══════════════════════════════════════════════════════════════════════ CODE SNIPPET 3: client/src/pages/GalleryPage.jsx ═══════════════════════════════════════════════════════════════════════
+
+JavaScript
+
+
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import ProjectCard from '../components/ProjectCard';
+import ProjectModal from '../components/ProjectModal';
+
+const GalleryPage = () => {
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const res = await axios.get('/api/projects');
+      setProjects(res.data);
+    };
+    fetchProjects();
+  }, []);
+
+  const handleOpenProject = (project) => {
+    setSelectedProject(project);
+    setIsModalOpen(true);
+  };
+
+  return (
+    <div className="gallery-page">
+      <h1>My Projects</h1>
+      <div className="projects-grid">
+        {projects.map(project => (
+          <ProjectCard 
+            key={project.id} 
+            project={project} 
+            onOpenProject={() => handleOpenProject(project)} 
+          />
+        ))}
+      </div>
+      {isModalOpen && (
+        <ProjectModal 
+          project={selectedProject} 
+          onClose={() => setIsModalOpen(false)} 
+        />
+      )}
+    </div>
+  );
+};
+
+export default GalleryPage;
+
+

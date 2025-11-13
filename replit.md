@@ -21,11 +21,11 @@ Preferred communication style: Simple, everyday language.
 ### Backend Architecture
 
 **Runtime & Framework:** Node.js with Express.js, using TypeScript.
-**Database Layer:** PostgreSQL via Neon serverless database, with Drizzle ORM for type-safe queries and migrations. Schema defined in `shared/schema.ts` includes `sessions`, `users`, `images` (for original uploads and saved edits), and `edits` (for AI transformations).
+**Database Layer:** PostgreSQL via Neon serverless database, with Drizzle ORM for type-safe queries and migrations. Schema defined in `shared/schema.ts` includes `sessions`, `users`, `projects` (groups images/edits), `images` (for original uploads and saved edits with projectId FK), and `edits` (for AI transformations).
 **Authentication:** Designed for Replit Auth integration with session-based authentication.
-**API Structure:** REST endpoints (`/api/*`) for creating AI edits, saving edits, updating image metadata, and retrieving gallery images. Includes request/response logging and error handling.
-**Storage Strategy:** Interface-based design (`IStorage`) with `MemStorage` for development and database-backed storage for production. Replit Object Storage is used for secure image file storage with ACL policies.
-**Image Processing & Storage:** Presigned URL generation for uploads. AI transformations handled by `POST /api/edits`, which downloads source images, converts to base64, calls the Gemini API, uploads the result, and saves the edit record.
+**API Structure:** REST endpoints (`/api/*`) for project management, creating AI edits, saving edits, updating image metadata, and retrieving gallery projects. Includes request/response logging and error handling. Key endpoints: GET/DELETE /api/projects/:id, DELETE /api/edits/:id.
+**Storage Strategy:** Interface-based design (`IStorage`) with database-backed storage. Uses optimized JOINs to prevent N+1 queries when fetching projects with images/edits. Replit Object Storage is used for secure image file storage with ACL policies.
+**Image Processing & Storage:** Presigned URL generation for uploads. Each upload creates a new project. AI transformations handled by `POST /api/edits`, which downloads source images, converts to base64, calls the Gemini API, uploads the result, and saves the edit record. "Overwrite Last Save" deletes previous save from DB (not just updates) to maintain clean gallery state.
 
 ### External Dependencies
 

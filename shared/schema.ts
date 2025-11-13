@@ -42,10 +42,29 @@ export const upsertUserSchema = createInsertSchema(users).omit({
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Projects table - Groups images and edits into projects
+export const projects = pgTable("projects", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("projects_user_id_idx").on(table.userId),
+]);
+
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type Project = typeof projects.$inferSelect;
+
 // Images table - Stores uploaded images and their metadata
 export const images = pgTable("images", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "cascade" }),
   parentImageId: integer("parent_image_id").references((): any => images.id, { onDelete: "cascade" }),
   isOriginal: integer("is_original").notNull().default(1),
   originalUrl: text("original_url").notNull(),
@@ -58,6 +77,7 @@ export const images = pgTable("images", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("images_user_id_idx").on(table.userId),
+  index("images_project_id_idx").on(table.projectId),
   index("images_parent_id_idx").on(table.parentImageId),
 ]);
 
