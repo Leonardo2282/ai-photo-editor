@@ -562,6 +562,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEMPORARY: Migration endpoint to create projects for existing images
+  app.post("/api/migrate-data", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Get all images without a project
+      const imagesWithoutProject = await storage.getImagesWithoutProject();
+      
+      // Filter to only this user's images
+      const userImages = imagesWithoutProject.filter(img => img.userId === userId);
+      
+      // Separate original images from saved edits
+      const originalImages = userImages.filter(img => img.isOriginal === 1);
+      const savedEdits = userImages.filter(img => img.isOriginal === 0);
+
+      let projectsCreated = 0;
+      let imagesLinked = 0;
+
+      // Create a project for each original image
+      for (const originalImg of originalImages) {
+        const newProject = await storage.createProject({
+          userId: userId,
+          name: `Project: ${originalImg.fileName}`,
+        });
+        projectsCreated++;
+
+        // Link the original image to the project
+        await storage.updateImageProjectId(originalImg.id, newProject.id);
+        imagesLinked++;
+
+        // Link any saved edits that have this image as parent
+        const relatedEdits = savedEdits.filter(edit => edit.parentImageId === originalImg.id);
+        for (const edit of relatedEdits) {
+          await storage.updateImageProjectId(edit.id, newProject.id);
+          imagesLinked++;
+        }
+      }
+
+      res.json({
+        message: "Migration successful!",
+        projectsCreated,
+        imagesLinked,
+      });
+    } catch (error) {
+      console.error("Migration failed:", error);
+      res.status(500).json({ error: "Migration failed" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
