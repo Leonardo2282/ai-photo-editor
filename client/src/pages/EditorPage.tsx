@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useParams } from "wouter";
 import type { UploadResult } from "@uppy/core";
 import UploadZone from "@/components/UploadZone";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -18,6 +19,8 @@ import { EditorCache, debounce } from "@/utils/editorCache";
 type EditWithUI = Edit & { isSaved: boolean };
 
 export default function EditorPage() {
+  const params = useParams();
+  const imageIdFromUrl = params.imageId ? parseInt(params.imageId) : null;
   const [uploadedImage, setUploadedImage] = useState<Image | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
@@ -210,18 +213,26 @@ export default function EditorPage() {
     console.log('[EditorPage] Session restored successfully');
   };
 
-  // Auto-restore last session on mount
+  // Auto-restore session on mount (from URL param or last active)
   useEffect(() => {
     // Only run once on first mount
     if (hasAttemptedRestore.current || uploadedImage) return;
     hasAttemptedRestore.current = true;
 
+    // Priority 1: Image ID from URL parameter
+    if (imageIdFromUrl) {
+      console.log('[EditorPage] Restoring session from URL imageId:', imageIdFromUrl);
+      restoreSession(imageIdFromUrl);
+      return;
+    }
+
+    // Priority 2: Last active session from cache
     const lastActiveId = EditorCache.getLastActiveImageId();
     if (lastActiveId) {
       console.log('[EditorPage] Found last active session, restoring...');
       restoreSession(lastActiveId);
     }
-  }, [uploadedImage]);
+  }, [uploadedImage, imageIdFromUrl]);
 
   // Save state to cache using refs for latest values
   const saveToCacheFromRefs = useCallback(() => {

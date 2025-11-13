@@ -37,6 +37,9 @@ function RouterContent() {
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/onboarding" component={OnboardingPage} />
+      <Route path="/editor/:imageId">
+        <DashboardLayout><EditorPage /></DashboardLayout>
+      </Route>
       <Route path="/editor">
         <DashboardLayout><EditorPage /></DashboardLayout>
       </Route>
