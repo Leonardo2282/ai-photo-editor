@@ -43,6 +43,10 @@ export interface IStorage {
   // Saved edit operations
   getLatestSavedChildImage(parentImageId: number, userId: string): Promise<Image | undefined>;
   saveEditAsImage(edit: Edit, parentImage: Image, overwrite: boolean): Promise<Image>;
+  
+  // Migration operations
+  getImagesWithoutProject(): Promise<Image[]>;
+  updateImageProjectId(imageId: number, projectId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -279,6 +283,21 @@ export class DatabaseStorage implements IStorage {
     await this.updateEdit(edit.id, { savedImageId: savedImage.id });
     
     return savedImage;
+  }
+  
+  async getImagesWithoutProject(): Promise<Image[]> {
+    const imagesWithoutProject = await db
+      .select()
+      .from(images)
+      .where(eq(images.projectId, null));
+    return imagesWithoutProject;
+  }
+  
+  async updateImageProjectId(imageId: number, projectId: number): Promise<void> {
+    await db
+      .update(images)
+      .set({ projectId })
+      .where(eq(images.id, imageId));
   }
 }
 
