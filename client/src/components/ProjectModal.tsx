@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Trash2, ExternalLink, AlertTriangle } from "lucide-react";
+import { Trash2, ExternalLink, AlertTriangle, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Project, Image, Edit } from "@shared/schema";
@@ -34,6 +34,39 @@ export default function ProjectModal({ projectId, isOpen, onClose }: ProjectModa
     queryKey: ['/api/projects', projectId],
     enabled: isOpen && !!projectId,
   });
+
+  // Download handler function
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'downloaded-image';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      window.URL.revokeObjectURL(blobUrl);
+      
+      toast({
+        title: "Download started",
+        description: `Downloading ${filename}`,
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast({
+        title: "Download failed",
+        description: "Could not download the image. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Delete edit mutation
   const deleteEditMutation = useMutation({
@@ -132,6 +165,18 @@ export default function ProjectModal({ projectId, isOpen, onClose }: ProjectModa
                       data-testid="img-original"
                     />
                   </div>
+                  <div className="p-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownload(project.originalImage!.currentUrl, `original-${project.originalImage!.fileName}`)}
+                      className="gap-2 w-full"
+                      data-testid="button-download-original"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Original
+                    </Button>
+                  </div>
                 </Card>
               </div>
             )}
@@ -161,6 +206,16 @@ export default function ProjectModal({ projectId, isOpen, onClose }: ProjectModa
                         <p className="text-xs text-muted-foreground" data-testid={`text-filename-${image.id}`}>
                           {image.fileName}
                         </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(image.currentUrl, image.fileName)}
+                          className="gap-2 w-full"
+                          data-testid={`button-download-saved-${image.id}`}
+                        >
+                          <Download className="h-3 w-3" />
+                          Download
+                        </Button>
                       </div>
                     </Card>
                   ))}
@@ -199,10 +254,20 @@ export default function ProjectModal({ projectId, isOpen, onClose }: ProjectModa
                         </p>
                         <div className="flex gap-2">
                           <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownload(edit.resultUrl, `edit-${edit.id}.png`)}
+                            className="gap-2 flex-1"
+                            data-testid={`button-download-edit-${edit.id}`}
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </Button>
+                          <Button
                             variant="destructive"
                             size="sm"
                             onClick={() => setEditToDelete(edit.id)}
-                            className="gap-2"
+                            className="gap-2 flex-1"
                             data-testid={`button-delete-edit-${edit.id}`}
                           >
                             <Trash2 className="h-3 w-3" />

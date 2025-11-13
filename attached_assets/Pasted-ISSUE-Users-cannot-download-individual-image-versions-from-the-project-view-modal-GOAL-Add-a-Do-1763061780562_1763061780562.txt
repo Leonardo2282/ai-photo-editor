@@ -1,0 +1,79 @@
+ISSUE: Users cannot download individual image versions from the project view modal.
+
+GOAL: Add a "Download" button under each image (both the original and its edits) within the `ProjectModal.jsx` component.
+
+STRATEGY: 
+1.  Modify the `client/src/components/ProjectModal.jsx` file.
+2.  Implement a `handleDownload` function that fetches the image URL as a blob, creates a temporary download link, and triggers the download in the browser. This approach correctly handles cross-origin images.
+3.  Add a "Download" button to the UI for the original image and for each edited version, calling this new function.
+
+Use the following reference code snippets.
+
+═══════════════════════════════════════════════════════════════════════
+IMPLEMENTATION INSTRUCTIONS:
+═══════════════════════════════════════════════════════════════════════
+
+**TASK: UPDATE `client/src/components/ProjectModal.jsx`**
+
+1.  **Add the `handleDownload` function** inside the `ProjectModal` component. This function will manage the download logic.
+2.  **Add a "Download" button** in the JSX for both the original image and for each item in the `edits` list.
+
+═══════════════════════════════════════════════════════════════════════
+CODE SNIPPET 1: The `handleDownload` function
+═══════════════════════════════════════════════════════════════════════
+
+```javascript
+// Add this function inside the ProjectModal component, before the return statement.
+
+const handleDownload = async (url, filename) => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename || 'downloaded-image';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    window.URL.revokeObjectURL(blobUrl); // Clean up
+  } catch (error) {
+    console.error('Download failed:', error);
+    alert('Could not download the image.');
+  }
+};
+
+
+═══════════════════════════════════════════════════════════════════════ CODE SNIPPET 2: Updated JSX for the image display ═══════════════════════════════════════════════════════════════════════
+
+JavaScript
+
+
+// In the return statement of ProjectModal.jsx, update the sections where images are rendered.
+
+// For the Original Image:
+<div className="original-image-container">
+  <h3>Original</h3>
+  <img src={project.original_image.url} alt="Original" />
+  <button onClick={() => handleDownload(project.original_image.url, `original-${project.id}.png`)}>Download</button>
+</div>
+
+// Inside the .map() for the edits:
+{
+  project.edits.map(edit => (
+    <div key={edit.id} className="edit-image-container">
+      <img src={edit.edited_image_url} alt={`Edit ${edit.id}`} />
+      <div className="image-actions">
+        {/* Your existing buttons like Delete, Start New Project... */}
+        <button onClick={() => handleDownload(edit.edited_image_url, `edit-${edit.id}.png`)}>Download</button>
+      </div>
+    </div>
+  ))
+}
+
+
