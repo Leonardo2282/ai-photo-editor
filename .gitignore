@@ -1,6 +1,43 @@
+# Dependencies
 node_modules
 dist
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Build output
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Database files
+*.db
+*.sqlite
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Temporary files
+/tmp
+.cache
+*.tmp
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Replit specific
+.replit
+.config
+.upm
+replit.nix
