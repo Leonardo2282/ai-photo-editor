@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-const genAI = new GoogleGenAI({ "AIzaSyCm6ETtt7xjS2R0x5p5HJZE3Eecl5lpZS8" });
+const genAI = new GoogleGenAI({ "Нужен ключ или замена нейросети" });
 
 export interface ImageEditRequest {
   imageUrl: string;
