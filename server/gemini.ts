@@ -1,6 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
+import axios from "axios";
+import FormData from "form-data";
+import { Readable } from "stream";
 
-const genAI = new GoogleGenAI({ "Нужен ключ или замена нейросети" });
+// DeepAI API key will be read from environment variable
+const DEEPAI_API_KEY = process.env.DEEPAI_API_KEY;
+const DEEPAI_API_URL = "https://api.deepai.org/api/image-editor";
 
 export interface ImageEditRequest {
   imageUrl: string;
@@ -13,107 +17,84 @@ export interface ImageEditResult {
 }
 
 /**
- * Edit an image using Gemini 2.0 Flash Image Generation model
- * Uses generateContent with multimodal approach
+ * Edits an image using the DeepAI "AI Photo Editor" model.
+ * It takes an image URL and a text prompt for modification.
+ * @param request - The image edit request containing the image URL and prompt.
+ * @returns A promise that resolves to the edited image data (base64 and mimeType ).
  */
 export async function editImageWithGemini(
   request: ImageEditRequest
 ): Promise<ImageEditResult> {
+  if (!DEEPAI_API_KEY) {
+    throw new Error("DEEPAI_API_KEY environment variable is not set.");
+  }
+
+  // 1. Fetch the image from the URL
+  // The original code used fetch, but axios is better for arraybuffer and form-data
+  const imageResponse = await axios.get(request.imageUrl, {
+    responseType: "arraybuffer",
+  });
+  const imageBuffer = Buffer.from(imageResponse.data);
+  const mimeType = imageResponse.headers["content-type"] || "image/jpeg";
+
+  // 2. Prepare the multipart form data for DeepAI API
+  const formData = new FormData();
+  // DeepAI API expects the image to be a file upload or a URL.
+  // Since the original logic handles data URLs and external URLs,
+  // we'll use the fetched image buffer and send it as a file.
+  formData.append("image", imageBuffer, {
+    filename: "image.jpg",
+    contentType: mimeType,
+  });
+  formData.append("text", request.prompt);
+
+  // 3. Call the DeepAI API
   try {
-    // Parse data URL to get image data and mime type
-    let imageBase64: string;
-    let mimeType: string;
-
-    if (request.imageUrl.startsWith("data:")) {
-      // Parse data URL
-      const matches = request.imageUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!matches) {
-        throw new Error("Invalid data URL format");
-      }
-      mimeType = matches[1];
-      imageBase64 = matches[2];
-    } else {
-      // Fetch from URL
-      const imageResponse = await fetch(request.imageUrl);
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
-      }
-      const imageBuffer = await imageResponse.arrayBuffer();
-      imageBase64 = Buffer.from(imageBuffer).toString("base64");
-      mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
-    }
-
-    // Use generateContent with multimodal input
-    // Model requires BOTH IMAGE and TEXT response modalities
-    const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType,
-                data: imageBase64,
-              },
-            },
-            {
-              text: `Edit this image based on the following instruction: ${request.prompt}`,
-            },
-          ],
-        },
-      ],
-      config: {
-        responseModalities: ["IMAGE", "TEXT"],
+    const deepaiResponse = await axios.post(DEEPAI_API_URL, formData, {
+      headers: {
+        "api-key": DEEPAI_API_KEY,
+        ...formData.getHeaders(),
       },
     });
 
-    // Extract the generated image from response
-    // The model returns both text and image parts
-    const candidates = response.candidates;
-    if (!candidates || candidates.length === 0) {
-      throw new Error("No candidates returned from Gemini API");
+    const outputUrl = deepaiResponse.data.output_url;
+
+    if (!outputUrl) {
+      throw new Error("DeepAI API did not return an output URL.");
     }
 
-    const content = candidates[0].content;
-    if (!content) {
-      throw new Error("No content in response");
-    }
+    // 4. Fetch the resulting image from the output URL
+    const resultImageResponse = await axios.get(outputUrl, {
+      responseType: "arraybuffer",
+    });
+    const resultImageBuffer = Buffer.from(resultImageResponse.data);
+    const resultMimeType = resultImageResponse.headers["content-type"] || "image/jpeg";
 
-    const parts = content.parts;
-    if (!parts || parts.length === 0) {
-      throw new Error("No parts in response");
-    }
-
-    // Find the part with inline image data (not the text part)
-    const imagePart = parts.find((part: any) => part.inlineData);
-
-    if (!imagePart || !imagePart.inlineData) {
-      throw new Error("No image data in response. Response contained only text.");
-    }
+    // 5. Convert to base64 for the client
+    const imageData = resultImageBuffer.toString("base64");
 
     return {
-      imageData: imagePart.inlineData.data || "",
-      mimeType: imagePart.inlineData.mimeType || "image/jpeg",
+      imageData: imageData,
+      mimeType: resultMimeType,
     };
   } catch (error: any) {
-    console.error("Gemini API error:", error);
+    console.error("DeepAI API error:", error);
     
-    // Handle specific error types
-    if (error?.message?.includes("quota") || error?.message?.includes("429")) {
-      throw new Error("QUOTA_EXCEEDED: You've reached your API usage limit. Please try again later or check your API quota at https://ai.dev/usage");
+    // Custom error handling for DeepAI
+    if (error.response) {
+      const status = error.response.status;
+      const data = error.response.data;
+      if (status === 401) {
+        throw new Error("INVALID_API_KEY: Your DeepAI API key is invalid or expired.");
+      }
+      if (status === 400 && data.err === "Quota Exceeded") {
+        throw new Error("QUOTA_EXCEEDED: You've reached your DeepAI API usage limit.");
+      }
+      throw new Error(`DeepAI API failed with status ${status}: ${data.err || JSON.stringify(data)}`);
     }
     
-    if (error?.message?.includes("401") || error?.message?.includes("unauthorized")) {
-      throw new Error("INVALID_API_KEY: Your API key is invalid or expired. Please check your Gemini API key configuration.");
-    }
-    
-    if (error?.message?.includes("403") || error?.message?.includes("forbidden")) {
-      throw new Error("API_ACCESS_DENIED: Access denied. Please ensure your API key has the correct permissions.");
-    }
-    
-    // Generic error handling
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    throw new Error(`Failed to edit image with Gemini: ${errorMessage}`);
+    throw new Error(`Failed to edit image with DeepAI: ${errorMessage}`);
   }
 }
+
